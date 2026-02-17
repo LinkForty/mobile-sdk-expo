@@ -1,0 +1,9 @@
+__tests__/
+coverage/
+vitest.config.ts
+tsconfig.json
+.gitignore
+.github/
+*.tsbuildinfo
+.DS_Store
+dist/**/*.d.ts.map

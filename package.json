@@ -1,0 +1,75 @@
+{
+  "name": "@linkforty/mobile-sdk-expo",
+  "version": "1.0.0",
+  "description": "Expo SDK for LinkForty - Deep linking and mobile attribution for Expo apps",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "prepare": "npm run build",
+    "prepublishOnly": "npm run build",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
+  },
+  "keywords": [
+    "linkforty",
+    "deep-linking",
+    "deferred-deep-linking",
+    "mobile-attribution",
+    "expo",
+    "react-native",
+    "universal-links",
+    "app-links",
+    "app-attribution",
+    "branch-alternative",
+    "appsflyer-alternative",
+    "adjust-alternative",
+    "self-hosted",
+    "open-source",
+    "privacy-focused"
+  ],
+  "author": "LinkForty",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/linkforty/expo-sdk.git"
+  },
+  "bugs": {
+    "url": "https://github.com/linkforty/expo-sdk/issues"
+  },
+  "homepage": "https://github.com/linkforty/expo-sdk#readme",
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=10.0.0"
+  },
+  "peerDependencies": {
+    "expo": ">=51.0.0",
+    "react": ">=18.0.0",
+    "react-native": ">=0.74.0"
+  },
+  "dependencies": {
+    "@react-native-async-storage/async-storage": "^2.1.0",
+    "expo-application": "~6.0.0",
+    "expo-device": "~7.0.0",
+    "expo-linking": "~7.0.0",
+    "expo-localization": "~16.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0",
+    "@vitest/coverage-v8": "^3.0.0",
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0"
+  },
+  "files": [
+    "dist/**/*",
+    "src/**/*",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  }
+}
