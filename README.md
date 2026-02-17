@@ -1,6 +1,6 @@
-# @linkforty/mobile-sdk-expo
+# LinkForty Expo SDK
 
-Expo SDK for [LinkForty](https://linkforty.com) — deep linking and mobile attribution for Expo apps.
+Expo SDK for [LinkForty](https://linkforty.com) - deep linking and mobile attribution for Expo apps.
 
 ## Features
 
@@ -9,7 +9,7 @@ Expo SDK for [LinkForty](https://linkforty.com) — deep linking and mobile attr
 - Event tracking with offline queue (persists across app restarts)
 - Revenue tracking
 - Programmatic link creation
-- Pure Expo modules — no native linking required (`expo-device`, `expo-application`, `expo-localization`, `expo-linking`)
+- Pure Expo modules - no native linking required (`expo-device`, `expo-application`, `expo-localization`, `expo-linking`)
 
 ## Installation
 
@@ -129,16 +129,16 @@ import type {
 
 All SDK errors are instances of `LinkFortyError` with a `.code` property:
 
-| Code | When |
-|------|------|
-| `NOT_INITIALIZED` | Method called before `initialize()` |
-| `ALREADY_INITIALIZED` | `initialize()` called twice |
+| Code                    | When                                                           |
+|-------------------------|----------------------------------------------------------------|
+| `NOT_INITIALIZED`       | Method called before `initialize()`                            |
+| `ALREADY_INITIALIZED`   | `initialize()` called twice                                    |
 | `INVALID_CONFIGURATION` | Bad config (HTTP on non-localhost, invalid attribution window) |
-| `NETWORK_ERROR` | Network request failed after retries |
-| `INVALID_RESPONSE` | Server returned non-2xx response |
-| `DECODING_ERROR` | Failed to parse server response |
-| `INVALID_EVENT_DATA` | Empty event name or negative revenue |
-| `MISSING_API_KEY` | `createLink()` called without API key |
+| `NETWORK_ERROR`         | Network request failed after retries                           |
+| `INVALID_RESPONSE`      | Server returned non-2xx response                               |
+| `DECODING_ERROR`        | Failed to parse server response                                |
+| `INVALID_EVENT_DATA`    | Empty event name or negative revenue                           |
+| `MISSING_API_KEY`       | `createLink()` called without API key                          |
 
 ## Offline Resilience
 
@@ -146,13 +146,9 @@ Events that fail to send are automatically queued in AsyncStorage (max 100 event
 
 ## Configuration
 
-| Field | Type | Required | Default | Description |
-|-------|------|----------|---------|-------------|
-| `baseUrl` | `string` | Yes | — | LinkForty server URL |
-| `apiKey` | `string` | No | — | API key for link creation |
-| `debug` | `boolean` | No | `false` | Enable verbose logging |
-| `attributionWindowHours` | `number` | No | `168` | Attribution window (1–2160 hours) |
-
-## License
-
-MIT
+| Field                    | Type      | Required   | Default   | Description                       |
+|--------------------------|-----------|------------|-----------|-----------------------------------|
+| `baseUrl`                | `string`  | Yes        | -         | LinkForty server URL              |
+| `apiKey`                 | `string`  | No         | -         | API key for link creation         |
+| `debug`                  | `boolean` | No         | `false`   | Enable verbose logging            |
+| `attributionWindowHours` | `number`  | No         | `168`     | Attribution window (1–2160 hours) |
