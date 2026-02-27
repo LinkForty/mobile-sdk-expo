@@ -1,6 +1,9 @@
 # LinkForty Expo SDK
 
-Expo SDK for [LinkForty](https://linkforty.com) - deep linking and mobile attribution for Expo apps.
+Expo SDK for [LinkForty](https://github.com/LinkForty/core) — the open-source alternative to Branch.io, AppsFlyer OneLink, and Firebase Dynamic Links. Add deferred deep linking, mobile attribution, and smart link routing to your Expo app. Self-hosted, privacy-first, no per-click pricing. Pure Expo modules — no native linking required.
+
+[![npm version](https://img.shields.io/npm/v/@linkforty/mobile-sdk-expo.svg)](https://www.npmjs.com/package/@linkforty/mobile-sdk-expo)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ## Features
 
@@ -152,3 +155,26 @@ Events that fail to send are automatically queued in AsyncStorage (max 100 event
 | `apiKey`                 | `string`  | No         | -         | API key for link creation         |
 | `debug`                  | `boolean` | No         | `false`   | Enable verbose logging            |
 | `attributionWindowHours` | `number`  | No         | `168`     | Attribution window (1–2160 hours) |
+
+## Other SDKs
+
+| Platform | Package |
+|----------|---------|
+| React Native | [`@linkforty/mobile-sdk-react-native`](https://github.com/LinkForty/mobile-sdk-react-native) |
+| iOS (Swift) | [LinkFortySDK](https://github.com/LinkForty/mobile-sdk-ios) |
+| Android (Kotlin) | [LinkFortySDK](https://github.com/LinkForty/mobile-sdk-android) |
+
+## Contributing
+
+Contributions are welcome! Please open an issue or pull request.
+
+## License
+
+MIT License - see [LICENSE](LICENSE) for details.
+
+## Support
+
+- **Documentation:** [docs.linkforty.com](https://docs.linkforty.com)
+- **Issues:** [GitHub Issues](https://github.com/LinkForty/mobile-sdk-expo/issues)
+- **Core Engine:** [LinkForty Core](https://github.com/LinkForty/core) — self-hosted open-source backend
+- **Cloud Platform:** [LinkForty Cloud](https://linkforty.com) — hosted SaaS with dashboard, teams, and billing

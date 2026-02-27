@@ -1,7 +1,7 @@
 {
   "name": "@linkforty/mobile-sdk-expo",
   "version": "1.0.2",
-  "description": "Expo SDK for LinkForty - Deep linking and mobile attribution for Expo apps",
+  "description": "Expo SDK for LinkForty - open-source alternative to Branch.io, AppsFlyer OneLink, and Firebase Dynamic Links. Deferred deep linking, attribution, and smart routing.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
@@ -25,6 +25,7 @@
     "branch-alternative",
     "appsflyer-alternative",
     "adjust-alternative",
+    "firebase-dynamic-links",
     "self-hosted",
     "open-source",
     "privacy-focused"
