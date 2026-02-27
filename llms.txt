@@ -1,0 +1,383 @@
+# @linkforty/mobile-sdk-expo
+
+> Expo SDK for LinkForty — an open-source mobile attribution and deep link management platform. Pure JavaScript implementation for Expo apps. Handles deep linking, deferred deep linking (install attribution), in-app event tracking with offline queue, revenue tracking, and link creation. Works with LinkForty Cloud (linkforty.com) or self-hosted Core instances.
+
+## Installation
+
+```bash
+npx expo install @linkforty/mobile-sdk-expo expo-device expo-application expo-localization expo-linking @react-native-async-storage/async-storage
+```
+
+All dependencies are Expo-compatible and use the Expo module system.
+
+## TypeScript Types
+
+```typescript
+interface LinkFortyConfig {
+  /** Base URL of your LinkForty instance (e.g., 'https://go.yourdomain.com') */
+  baseUrl: string;
+  /** API key — only needed if calling createLink() */
+  apiKey?: string;
+  /** Enable debug logging (default: false) */
+  debug?: boolean;
+  /** Attribution window in hours (default: 168 = 7 days, range: 1-2160) */
+  attributionWindowHours?: number;
+}
+
+interface DeepLinkData {
+  shortCode: string;
+  iosUrl?: string;
+  androidUrl?: string;
+  webUrl?: string;
+  utmParameters?: {
+    source?: string;
+    medium?: string;
+    campaign?: string;
+    term?: string;
+    content?: string;
+  };
+  /** Custom key-value parameters set when the link was created */
+  customParameters?: Record<string, string>;
+  /** In-app destination path (e.g., '/product/123') */
+  deepLinkPath?: string;
+  /** Custom URI scheme (e.g., 'myapp') */
+  appScheme?: string;
+  clickedAt?: string;
+  linkId?: string;
+}
+
+interface InstallAttributionResponse {
+  installId: string;
+  attributed: boolean;
+  /** Attribution confidence score (0-100) */
+  confidenceScore: number;
+  /** Matched fingerprint factors (e.g., ['ip', 'user_agent', 'timezone']) */
+  matchedFactors: string[];
+  deepLinkData: DeepLinkData | {};
+}
+
+interface CreateLinkOptions {
+  /** Template ID (UUID) — auto-selected when omitted */
+  templateId?: string;
+  /** Template slug — only needed when templateId is provided */
+  templateSlug?: string;
+  /** Custom parameters embedded in the link */
+  deepLinkParameters?: Record<string, string>;
+  title?: string;
+  description?: string;
+  /** Custom short code (auto-generated if omitted) */
+  customCode?: string;
+  utmParameters?: {
+    source?: string;
+    medium?: string;
+    campaign?: string;
+    term?: string;
+    content?: string;
+  };
+}
+
+interface CreateLinkResult {
+  /** Full shareable URL (e.g., 'https://go.example.com/tmpl/abc123') */
+  url: string;
+  shortCode: string;
+  linkId: string;
+}
+
+/** All SDK errors are this type */
+class LinkFortyError extends Error {
+  code: 'NOT_INITIALIZED' | 'ALREADY_INITIALIZED' | 'INVALID_CONFIGURATION'
+    | 'NETWORK_ERROR' | 'INVALID_RESPONSE' | 'DECODING_ERROR'
+    | 'INVALID_EVENT_DATA' | 'MISSING_API_KEY';
+}
+
+type DeepLinkCallback = (url: string, deepLinkData: DeepLinkData | null) => void;
+type DeferredDeepLinkCallback = (deepLinkData: DeepLinkData | null) => void;
+```
+
+## SDK API
+
+The SDK exports a singleton default export: `LinkFortySDK`.
+
+```typescript
+import LinkFortySDK from '@linkforty/mobile-sdk-expo';
+```
+
+### initialize(config: LinkFortyConfig): Promise\<InstallAttributionResponse\>
+
+Initialize the SDK, report the install, and return attribution data immediately. Must be called before any other method. HTTPS is required for `baseUrl` (except localhost for development).
+
+```typescript
+const attribution = await LinkFortySDK.initialize({
+  baseUrl: 'https://go.yourdomain.com',
+  apiKey: 'lf_live_abc123',         // optional — only for createLink()
+  debug: __DEV__,
+  attributionWindowHours: 168,       // 7 days (default)
+});
+
+console.log(attribution.installId);       // UUID
+console.log(attribution.attributed);      // true/false
+console.log(attribution.confidenceScore); // 0-100
+console.log(attribution.matchedFactors);  // ['ip', 'user_agent', ...]
+```
+
+**Property:** `LinkFortySDK.isInitialized: boolean` — check if SDK is initialized.
+
+### onDeepLink(callback: DeepLinkCallback): void
+
+Register a callback for direct deep links — fires when user taps a LinkForty link and the app is already installed. Supports multiple callbacks.
+
+```typescript
+LinkFortySDK.onDeepLink((url, data) => {
+  console.log('Deep link URL:', url);
+  if (data?.customParameters?.route) {
+    router.push(`/${data.customParameters.route}/${data.customParameters.id}`);
+  }
+});
+```
+
+### onDeferredDeepLink(callback: DeferredDeepLinkCallback): void
+
+Register a callback for deferred deep links — fires on first app launch if the install was attributed to a link click.
+
+```typescript
+LinkFortySDK.onDeferredDeepLink((data) => {
+  if (data) {
+    console.log('Attributed install from:', data.shortCode);
+    router.push(`/${data.customParameters?.route}/${data.customParameters?.id}`);
+  }
+});
+```
+
+### handleDeepLink(url: string): void
+
+Manually pass a URL to the SDK for deep link handling. Use when you receive a URL through a channel other than the automatic listener.
+
+### trackEvent(name: string, properties?: Record\<string, unknown\>): Promise\<void\>
+
+Track in-app events. Failed sends are queued offline (max 100 events) and retried automatically on next successful send.
+
+```typescript
+await LinkFortySDK.trackEvent('add_to_cart', {
+  productId: '789',
+  price: 29.99,
+});
+```
+
+### trackRevenue(amount: number, currency: string, properties?: Record\<string, unknown\>): Promise\<void\>
+
+Track revenue events with a dedicated method for clearer analytics.
+
+```typescript
+await LinkFortySDK.trackRevenue(29.99, 'USD', {
+  productId: '789',
+  orderId: 'order_123',
+});
+```
+
+### createLink(options: CreateLinkOptions): Promise\<CreateLinkResult\>
+
+Create a shareable LinkForty link from within the app. Requires `apiKey` in the init config.
+
+```typescript
+const result = await LinkFortySDK.createLink({
+  deepLinkParameters: {
+    route: 'product',
+    productId: '789',
+  },
+  title: 'Check out this product!',
+  utmParameters: {
+    source: 'in_app_share',
+    medium: 'referral',
+  },
+});
+
+console.log(result.url);       // https://go.yourdomain.com/tmpl/abc12345
+console.log(result.shortCode); // abc12345
+console.log(result.linkId);    // uuid
+```
+
+### Offline Event Queue
+
+```typescript
+LinkFortySDK.queuedEventCount;       // number of events waiting to send
+await LinkFortySDK.flushEvents();     // manually flush the queue
+await LinkFortySDK.clearEventQueue(); // clear queue without sending
+```
+
+### Utility Methods
+
+```typescript
+const installId = await LinkFortySDK.getInstallId();
+const installData = await LinkFortySDK.getInstallData();
+const isFirst = await LinkFortySDK.isFirstLaunch();
+
+// Clear all stored data (e.g., on user logout)
+await LinkFortySDK.clearData();
+
+// Reset SDK to uninitialized state (does NOT clear stored data)
+LinkFortySDK.reset();
+```
+
+## Platform Setup (app.json / app.config.js)
+
+```json
+{
+  "expo": {
+    "ios": {
+      "associatedDomains": ["applinks:go.yourdomain.com"]
+    },
+    "android": {
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "go.yourdomain.com"
+            }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ]
+    }
+  }
+}
+```
+
+LinkForty automatically serves `/.well-known/apple-app-site-association` (iOS) and `/.well-known/assetlinks.json` (Android) from your domain. No manual file hosting needed.
+
+## Complete Integration Example (Expo Router)
+
+```typescript
+// app/_layout.tsx
+import { useEffect } from 'react';
+import { Stack, useRouter } from 'expo-router';
+import { Share } from 'react-native';
+import LinkFortySDK, { LinkFortyError } from '@linkforty/mobile-sdk-expo';
+
+export default function RootLayout() {
+  const router = useRouter();
+
+  useEffect(() => {
+    async function initLinkForty() {
+      try {
+        const attribution = await LinkFortySDK.initialize({
+          baseUrl: 'https://go.yourdomain.com',
+          apiKey: 'lf_live_abc123',
+          debug: __DEV__,
+        });
+
+        // Handle deferred deep links (first open after install)
+        LinkFortySDK.onDeferredDeepLink((data) => {
+          if (data?.customParameters?.route) {
+            router.push(`/${data.customParameters.route}/${data.customParameters.id}`);
+          }
+        });
+
+        // Handle direct deep links (app already installed)
+        LinkFortySDK.onDeepLink((url, data) => {
+          if (data?.customParameters?.route) {
+            router.push(`/${data.customParameters.route}/${data.customParameters.id}`);
+          }
+        });
+
+        if (attribution.attributed) {
+          console.log('Install attributed! Confidence:', attribution.confidenceScore);
+        }
+      } catch (error) {
+        if (error instanceof LinkFortyError) {
+          console.error('LinkForty error:', error.code, error.message);
+        }
+      }
+    }
+
+    initLinkForty();
+  }, []);
+
+  return (
+    <Stack>
+      <Stack.Screen name="index" />
+      <Stack.Screen name="product/[id]" />
+      <Stack.Screen name="profile/[id]" />
+    </Stack>
+  );
+}
+
+// Share a deep link from anywhere in your app
+export async function shareProduct(productId: string, productName: string) {
+  const result = await LinkFortySDK.createLink({
+    deepLinkParameters: { route: 'product', productId },
+    title: productName,
+    utmParameters: { source: 'in_app_share', medium: 'referral' },
+  });
+
+  await Share.share({
+    message: `Check out ${productName}! ${result.url}`,
+    url: result.url,
+  });
+}
+
+// Track a conversion from anywhere in your app
+export async function trackPurchase(orderId: string, amount: number) {
+  await LinkFortySDK.trackRevenue(amount, 'USD', { orderId });
+}
+```
+
+## Error Handling
+
+All SDK methods throw `LinkFortyError` with a `.code` property:
+
+```typescript
+import LinkFortySDK, { LinkFortyError } from '@linkforty/mobile-sdk-expo';
+
+try {
+  await LinkFortySDK.initialize({ baseUrl: 'https://go.yourdomain.com' });
+} catch (error) {
+  if (error instanceof LinkFortyError) {
+    switch (error.code) {
+      case 'ALREADY_INITIALIZED':
+        // SDK was already initialized — safe to ignore
+        break;
+      case 'INVALID_CONFIGURATION':
+        console.error('Check your baseUrl:', error.message);
+        break;
+      case 'NETWORK_ERROR':
+        console.error('Could not reach server:', error.message);
+        break;
+      default:
+        console.error('LinkForty error:', error.code, error.message);
+    }
+  }
+}
+```
+
+Error codes: `NOT_INITIALIZED`, `ALREADY_INITIALIZED`, `INVALID_CONFIGURATION`, `NETWORK_ERROR`, `INVALID_RESPONSE`, `DECODING_ERROR`, `INVALID_EVENT_DATA`, `MISSING_API_KEY`.
+
+## Testing Deep Links
+
+```bash
+# iOS Simulator
+xcrun simctl openurl booted "https://go.yourdomain.com/abc123"
+
+# Android Emulator
+adb shell am start -a android.intent.action.VIEW -d "https://go.yourdomain.com/abc123"
+
+# Expo CLI
+npx uri-scheme open "https://go.yourdomain.com/abc123" --ios
+npx uri-scheme open "https://go.yourdomain.com/abc123" --android
+```
+
+## Self-Hosted vs Cloud
+
+The only change is the `baseUrl`:
+
+```typescript
+// Cloud (managed SaaS)
+await LinkFortySDK.initialize({ baseUrl: 'https://go.linkforty.com' });
+
+// Self-hosted (@linkforty/core)
+await LinkFortySDK.initialize({ baseUrl: 'https://links.yourdomain.com' });
+```
+
+All SDK methods work identically with both.
