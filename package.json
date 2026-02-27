@@ -33,12 +33,12 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/linkforty/expo-sdk.git"
+    "url": "https://github.com/LinkForty/mobile-sdk-expo.git"
   },
   "bugs": {
-    "url": "https://github.com/linkforty/expo-sdk/issues"
+    "url": "https://github.com/LinkForty/mobile-sdk-expo/issues"
   },
-  "homepage": "https://github.com/linkforty/expo-sdk#readme",
+  "homepage": "https://github.com/LinkForty/mobile-sdk-expo#readme",
   "engines": {
     "node": ">=20.0.0",
     "npm": ">=10.0.0"
