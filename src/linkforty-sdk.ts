@@ -146,6 +146,7 @@ export class LinkFortySDK {
     if (options.description) body.description = options.description;
     if (options.customCode) body.customCode = options.customCode;
     if (options.utmParameters) body.utmParameters = options.utmParameters;
+    if (options.externalUserId) body.externalUserId = options.externalUserId;
 
     const useSimplifiedEndpoint = !options.templateId;
     const endpoint = useSimplifiedEndpoint ? '/api/sdk/v1/links' : '/api/links';
@@ -156,17 +157,19 @@ export class LinkFortySDK {
       url?: string;
       shortCode?: string;
       linkId?: string;
+      deduplicated?: boolean;
     }>(endpoint, {
       method: 'POST',
       body: JSON.stringify(body),
     });
 
-    // SDK endpoint returns { url, shortCode, linkId } directly
+    // SDK endpoint returns { url, shortCode, linkId, deduplicated? } directly
     if (useSimplifiedEndpoint && response.url) {
       return {
         url: response.url,
         shortCode: response.shortCode || response.short_code,
         linkId: response.linkId || response.id,
+        deduplicated: response.deduplicated,
       };
     }
 
