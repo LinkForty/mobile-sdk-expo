@@ -21,6 +21,7 @@ export class LinkFortySDK {
   private attributionManager: AttributionManager | null = null;
   private deepLinkHandler: DeepLinkHandler | null = null;
   private eventTracker: EventTracker | null = null;
+  private externalUserId: string | null = null;
   private _isInitialized = false;
 
   get isInitialized(): boolean {
@@ -104,6 +105,24 @@ export class LinkFortySDK {
     this.requireDeepLinkHandler().handleDeepLink(url);
   }
 
+  // -- User Identity --
+
+  /**
+   * Sets the external user ID for attribution. This ID will be attached to all
+   * links created via createLink() unless overridden per-call. Pass null to clear.
+   */
+  setExternalUserId(id: string | null): void {
+    this.externalUserId = id;
+    logger.log('External user ID set:', id);
+  }
+
+  /**
+   * Returns the current external user ID, if set.
+   */
+  getExternalUserId(): string | null {
+    return this.externalUserId;
+  }
+
   // -- Event Tracking --
 
   async trackEvent(name: string, properties?: Record<string, unknown>): Promise<void> {
@@ -146,7 +165,9 @@ export class LinkFortySDK {
     if (options.description) body.description = options.description;
     if (options.customCode) body.customCode = options.customCode;
     if (options.utmParameters) body.utmParameters = options.utmParameters;
-    if (options.externalUserId) body.externalUserId = options.externalUserId;
+    // Per-call externalUserId takes precedence, then fall back to SDK-level value
+    const resolvedUserId = options.externalUserId ?? this.externalUserId;
+    if (resolvedUserId) body.externalUserId = resolvedUserId;
 
     const useSimplifiedEndpoint = !options.templateId;
     const endpoint = useSimplifiedEndpoint ? '/api/sdk/v1/links' : '/api/links';
@@ -207,6 +228,7 @@ export class LinkFortySDK {
     await this.attributionManager?.clearData();
     await this.eventTracker?.clearQueue();
     this.deepLinkHandler?.clearCallbacks();
+    this.externalUserId = null;
     logger.log('All SDK data cleared');
   }
 
@@ -217,6 +239,7 @@ export class LinkFortySDK {
     this.attributionManager = null;
     this.deepLinkHandler = null;
     this.eventTracker = null;
+    this.externalUserId = null;
     this._isInitialized = false;
     logger.log('SDK reset to uninitialized state');
   }
