@@ -1,3 +1,9 @@
+## 1.2.0 (2026-03-17)
+
+* ci: add semantic-release with OIDC trusted publishing to npm ([05c7918](https://github.com/LinkForty/mobile-sdk-expo/commit/05c7918))
+* feat: add setExternalUserId for SDK-level user attribution ([f555707](https://github.com/LinkForty/mobile-sdk-expo/commit/f555707))
+* chore: add .claude/ to gitignore ([4c6aade](https://github.com/LinkForty/mobile-sdk-expo/commit/4c6aade))
+
 # Changelog
 
 All notable changes to this project will be documented in this file.
