@@ -1,3 +1,7 @@
+## 1.3.0 (2026-04-01)
+
+* feat: add webFallbackUrl to CreateLinkOptions ([d96c7ae](https://github.com/LinkForty/mobile-sdk-expo/commit/d96c7ae))
+
 ## 1.2.0 (2026-03-17)
 
 * ci: add semantic-release with OIDC trusted publishing to npm ([05c7918](https://github.com/LinkForty/mobile-sdk-expo/commit/05c7918))
