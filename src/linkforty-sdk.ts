@@ -165,6 +165,7 @@ export class LinkFortySDK {
     if (options.description) body.description = options.description;
     if (options.customCode) body.customCode = options.customCode;
     if (options.utmParameters) body.utmParameters = options.utmParameters;
+    if (options.webFallbackUrl) body.webFallbackUrl = options.webFallbackUrl;
     // Per-call externalUserId takes precedence, then fall back to SDK-level value
     const resolvedUserId = options.externalUserId ?? this.externalUserId;
     if (resolvedUserId) body.externalUserId = resolvedUserId;

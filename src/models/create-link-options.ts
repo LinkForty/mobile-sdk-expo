@@ -10,4 +10,6 @@ export interface CreateLinkOptions {
   utmParameters?: UTMParameters;
   /** Identifier for the app user creating the link (enables per-user deduplication and share attribution) */
   externalUserId?: string;
+  /** Web fallback URL — used when the app is not installed or on desktop browsers */
+  webFallbackUrl?: string;
 }
