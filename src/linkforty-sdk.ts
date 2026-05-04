@@ -74,7 +74,11 @@ export class LinkFortySDK {
 
     // Report install
     const attributionWindowHours = config.attributionWindowHours ?? 168;
-    const response = await this.attributionManager.reportInstall(attributionWindowHours);
+    const response = await this.attributionManager.reportInstall(
+      attributionWindowHours,
+      undefined, // deviceId — IDFA/GAID not collected by Expo SDK
+      config.appToken,
+    );
 
     // If attributed, deliver deferred deep link
     if (response.attributed && response.deepLinkData) {

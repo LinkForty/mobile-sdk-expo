@@ -23,6 +23,7 @@ export class AttributionManager {
   async reportInstall(
     attributionWindowHours: number,
     deviceId?: string,
+    appToken?: string,
   ): Promise<InstallAttributionResponse> {
     const isFirst = await this.storage.isFirstLaunch();
 
@@ -39,7 +40,9 @@ export class AttributionManager {
         '/api/sdk/v1/install',
         {
           method: 'POST',
-          body: JSON.stringify(fp),
+          // appToken (when provided) lets Cloud scope organic installs
+          // to the right workspace. Omitted from the body when undefined.
+          body: JSON.stringify(appToken ? { ...fp, appToken } : fp),
         },
       );
     } catch (e) {
