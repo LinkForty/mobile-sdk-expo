@@ -1,3 +1,9 @@
+## 1.4.0 (2026-05-04)
+
+* feat: add appToken config option for Cloud organic-install attribution (#1) ([8261ca4](https://github.com/LinkForty/mobile-sdk-expo/commit/8261ca4)), closes [#1](https://github.com/LinkForty/mobile-sdk-expo/issues/1) [LinkForty/cloud#76](https://github.com/LinkForty/cloud/issues/76)
+* ci: drop flaky 'npm install -g npm@latest' self-upgrade step (#2) ([f1cebdd](https://github.com/LinkForty/mobile-sdk-expo/commit/f1cebdd)), closes [#2](https://github.com/LinkForty/mobile-sdk-expo/issues/2) [#1](https://github.com/LinkForty/mobile-sdk-expo/issues/1)
+* update packages ([334885e](https://github.com/LinkForty/mobile-sdk-expo/commit/334885e))
+
 ## 1.3.0 (2026-04-01)
 
 * feat: add webFallbackUrl to CreateLinkOptions ([d96c7ae](https://github.com/LinkForty/mobile-sdk-expo/commit/d96c7ae))
