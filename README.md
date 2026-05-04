@@ -29,6 +29,7 @@ import LinkForty from '@linkforty/mobile-sdk-expo';
 const response = await LinkForty.initialize({
   baseUrl: 'https://go.yourdomain.com',
   apiKey: 'your-api-key',       // Optional, required for link creation
+  appToken: 'at_a1b2c3d4...',   // Recommended for Cloud — enables organic-install attribution
   debug: true,                   // Optional, enables verbose logging
   attributionWindowHours: 168,   // Optional, default 7 days
 });
