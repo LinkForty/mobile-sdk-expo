@@ -9,4 +9,6 @@ export interface DeviceFingerprint {
   appVersion: string;
   deviceId?: string;
   attributionWindowHours: number;
+  /** Public workspace token used to scope install attribution to a workspace. */
+  appToken?: string;
 }

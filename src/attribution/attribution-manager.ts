@@ -23,6 +23,7 @@ export class AttributionManager {
   async reportInstall(
     attributionWindowHours: number,
     deviceId?: string,
+    appToken?: string,
   ): Promise<InstallAttributionResponse> {
     const isFirst = await this.storage.isFirstLaunch();
 
@@ -31,7 +32,10 @@ export class AttributionManager {
     }
 
     const fp = this.fingerprint.collect(attributionWindowHours, deviceId);
-    logger.log('Reporting install with fingerprint:', fp);
+    // Include the workspace token so the backend scopes attribution to the
+    // correct workspace rather than relying solely on fingerprint matching.
+    const installBody = appToken ? { ...fp, appToken } : fp;
+    logger.log('Reporting install with fingerprint:', installBody);
 
     let response: InstallAttributionResponse;
     try {
@@ -39,7 +43,7 @@ export class AttributionManager {
         '/api/sdk/v1/install',
         {
           method: 'POST',
-          body: JSON.stringify(fp),
+          body: JSON.stringify(installBody),
         },
       );
     } catch (e) {

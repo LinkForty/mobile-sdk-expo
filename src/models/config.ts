@@ -5,6 +5,13 @@ export interface LinkFortyConfig {
   baseUrl: string;
   /** Optional API key for Cloud authentication */
   apiKey?: string;
+  /**
+   * Public workspace token (LinkForty Cloud). Sent with install events so the
+   * backend can scope attribution to the correct workspace instead of relying
+   * solely on fingerprint matching. Shipped in the app bundle — this is
+   * attribution scoping, not a secret.
+   */
+  appToken?: string;
   /** Enable debug logging (default: false) */
   debug?: boolean;
   /** Attribution window in hours (default: 168 = 7 days) */
