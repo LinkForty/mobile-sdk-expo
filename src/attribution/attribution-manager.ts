@@ -4,6 +4,7 @@ import type { StorageManagerProtocol } from '../storage/storage-manager';
 import type { InstallAttributionResponse } from '../models/install-response';
 import type { DeepLinkData } from '../models/deep-link-data';
 import { logger } from '../logger';
+import { SDK_NAME, SDK_VERSION } from '../version';
 
 export class AttributionManager {
   private readonly network: NetworkManagerProtocol;
@@ -42,7 +43,13 @@ export class AttributionManager {
           method: 'POST',
           // appToken (when provided) lets Cloud scope organic installs
           // to the right workspace. Omitted from the body when undefined.
-          body: JSON.stringify(appToken ? { ...fp, appToken } : fp),
+          // sdkName/sdkVersion (SIT-235) identify the SDK for health diagnostics.
+          body: JSON.stringify({
+            ...fp,
+            ...(appToken ? { appToken } : {}),
+            sdkName: SDK_NAME,
+            sdkVersion: SDK_VERSION,
+          }),
         },
       );
     } catch (e) {
