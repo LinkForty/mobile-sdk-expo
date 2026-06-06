@@ -10,17 +10,21 @@ import { NetworkManager } from './network/network-manager';
 import { StorageManager } from './storage/storage-manager';
 import { FingerprintCollector } from './fingerprint/fingerprint-collector';
 import { AttributionManager } from './attribution/attribution-manager';
+import { AttributionContext } from './attribution/attribution-context';
 import { DeepLinkHandler } from './deeplink/deep-link-handler';
 import { EventTracker } from './events/event-tracker';
 import { EventQueue } from './events/event-queue';
+import { NavigationTracker } from './navigation/navigation-tracker';
 import { logger } from './logger';
 
 export class LinkFortySDK {
   private config: LinkFortyConfig | null = null;
   private networkManager: NetworkManager | null = null;
   private attributionManager: AttributionManager | null = null;
+  private attributionContext: AttributionContext | null = null;
   private deepLinkHandler: DeepLinkHandler | null = null;
   private eventTracker: EventTracker | null = null;
+  private navigationTracker: NavigationTracker | null = null;
   private externalUserId: string | null = null;
   private _isInitialized = false;
 
@@ -61,7 +65,18 @@ export class LinkFortySDK {
       fingerprintCollector,
     );
 
-    this.eventTracker = new EventTracker(networkManager, storageManager, eventQueue);
+    // Last-click attribution context: restore any persisted active link before
+    // we attribute the install or handle deep links.
+    const attributionContext = new AttributionContext();
+    await attributionContext.load();
+    this.attributionContext = attributionContext;
+
+    this.eventTracker = new EventTracker(
+      networkManager,
+      storageManager,
+      eventQueue,
+      attributionContext,
+    );
 
     const deepLinkHandler = new DeepLinkHandler(
       config.baseUrl,
@@ -69,6 +84,15 @@ export class LinkFortySDK {
       fingerprintCollector,
     );
     this.deepLinkHandler = deepLinkHandler;
+
+    // Record every direct (re-engagement) deep-link open into the attribution
+    // context so subsequent events credit the link the user just tapped — not
+    // their original install link. Registered before any developer callbacks.
+    deepLinkHandler.onDeepLink((_url, data) => {
+      if (data?.linkId) {
+        void attributionContext.recordDeepLinkOpen(data.linkId);
+      }
+    });
 
     this._isInitialized = true;
 
@@ -80,8 +104,12 @@ export class LinkFortySDK {
       config.appToken,
     );
 
-    // If attributed, deliver deferred deep link
+    // If attributed, deliver deferred deep link + seed the attribution context so
+    // the new user's first-session events credit the install link.
     if (response.attributed && response.deepLinkData) {
+      if (response.deepLinkData.linkId) {
+        await attributionContext.recordDeepLinkOpen(response.deepLinkData.linkId);
+      }
       deepLinkHandler.deliverDeferredDeepLink(response.deepLinkData);
     } else {
       deepLinkHandler.deliverDeferredDeepLink(null);
@@ -89,6 +117,28 @@ export class LinkFortySDK {
 
     // Start listening for direct deep links
     deepLinkHandler.startListening();
+
+    // Optional auto screen-view tracking. Screen views flow through trackEvent,
+    // so they inherit the attribution stamp. Guarded: a missing/invalid
+    // navigationRef (or no react-navigation) is a no-op.
+    if (config.autoTrackNavigation) {
+      if (config.navigationRef) {
+        const navOptions =
+          typeof config.autoTrackNavigation === 'object' ? config.autoTrackNavigation : {};
+        this.navigationTracker = new NavigationTracker(
+          config.navigationRef,
+          (name, properties) => {
+            void this.trackEvent(name, properties);
+          },
+          { captureParams: navOptions.captureParams, debounceMs: navOptions.debounceMs },
+        );
+        this.navigationTracker.start();
+      } else {
+        logger.warn(
+          'autoTrackNavigation is enabled but no navigationRef was provided — screen tracking is disabled.',
+        );
+      }
+    }
 
     logger.log('SDK initialized successfully (attributed:', response.attributed, ')');
 
@@ -231,6 +281,7 @@ export class LinkFortySDK {
 
   async clearData(): Promise<void> {
     await this.attributionManager?.clearData();
+    await this.attributionContext?.clear();
     await this.eventTracker?.clearQueue();
     this.deepLinkHandler?.clearCallbacks();
     this.externalUserId = null;
@@ -239,14 +290,27 @@ export class LinkFortySDK {
 
   reset(): void {
     this.deepLinkHandler?.cleanup();
+    this.navigationTracker?.stop();
     this.config = null;
     this.networkManager = null;
     this.attributionManager = null;
+    this.attributionContext = null;
     this.deepLinkHandler = null;
     this.eventTracker = null;
+    this.navigationTracker = null;
     this.externalUserId = null;
     this._isInitialized = false;
     logger.log('SDK reset to uninitialized state');
+  }
+
+  // -- Attribution Session --
+
+  /**
+   * Current session id — identifies one app-open journey. Rotates on cold start
+   * and on each new deep-link open. Used to group a visit's screen-flow.
+   */
+  getSessionId(): string | null {
+    return this.attributionContext?.getSessionId() ?? null;
   }
 
   // -- Guards --

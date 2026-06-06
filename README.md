@@ -83,6 +83,32 @@ await LinkForty.clearEventQueue();      // Clear without sending
 LinkForty.queuedEventCount;            // Queue size getter
 ```
 
+Every tracked event (including auto screen views) is automatically attributed to the deep link that drove the visit using a last-click model — so re-engagement campaigns are credited to the link the user tapped, not their original install link.
+
+### Automatic Screen Tracking
+
+Auto-emit a `screen_view` event on each navigation — no manual per-screen calls — so your dashboard can show an **attributed screen-flow funnel** per campaign. Opt-in, via [React Navigation](https://reactnavigation.org/) (an **optional** peer dependency):
+
+```typescript
+import { createNavigationContainerRef } from '@react-navigation/native';
+
+export const navigationRef = createNavigationContainerRef();
+
+await LinkForty.initialize({
+  baseUrl: 'https://go.yourdomain.com',
+  autoTrackNavigation: true, // screen names only (privacy-safe default)
+  navigationRef,             // also pass this to <NavigationContainer ref={navigationRef}>
+});
+```
+
+**Route params are OFF by default** (they can contain PII). To capture specific non-PII params, opt in with an explicit allow-list:
+
+```typescript
+autoTrackNavigation: { captureParams: ['productId', 'category'] }
+```
+
+Apps that don't use React Navigation simply omit `navigationRef` — nothing changes and there's no required dependency. Rapid transitions are debounced and same-screen re-renders deduped.
+
 ### Link Creation
 
 Requires `apiKey` in config.
@@ -124,6 +150,7 @@ import type {
   CreateLinkOptions,
   CreateLinkResult,
   EventRequest,
+  AutoTrackNavigationOptions,
   DeferredDeepLinkCallback,
   DeepLinkCallback,
 } from '@linkforty/mobile-sdk-expo';
@@ -156,6 +183,8 @@ Events that fail to send are automatically queued in AsyncStorage (max 100 event
 | `apiKey`                 | `string`  | No         | -         | API key for link creation         |
 | `debug`                  | `boolean` | No         | `false`   | Enable verbose logging            |
 | `attributionWindowHours` | `number`  | No         | `168`     | Attribution window (1–2160 hours) |
+| `autoTrackNavigation`    | `boolean \| { captureParams?: string[]; debounceMs?: number }` | No | `false` | Auto-emit `screen_view` from React Navigation (screen names only unless params are allow-listed) |
+| `navigationRef`          | `NavigationContainerRefLike` | No | - | React Navigation ref; required when `autoTrackNavigation` is enabled |
 
 ## Other SDKs
 

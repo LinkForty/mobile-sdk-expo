@@ -1,6 +1,7 @@
 import type { NetworkManagerProtocol } from '../network/network-manager';
 import type { StorageManagerProtocol } from '../storage/storage-manager';
 import type { EventRequest } from '../models/event-request';
+import type { AttributionContext } from '../attribution/attribution-context';
 import { EventQueue } from './event-queue';
 import { LinkFortyError } from '../errors/linkforty-error';
 import { logger } from '../logger';
@@ -9,15 +10,18 @@ export class EventTracker {
   private readonly network: NetworkManagerProtocol;
   private readonly storage: StorageManagerProtocol;
   private readonly queue: EventQueue;
+  private readonly attribution?: AttributionContext;
 
   constructor(
     network: NetworkManagerProtocol,
     storage: StorageManagerProtocol,
     queue?: EventQueue,
+    attribution?: AttributionContext,
   ) {
     this.network = network;
     this.storage = storage;
     this.queue = queue ?? new EventQueue();
+    this.attribution = attribution;
   }
 
   async trackEvent(name: string, properties?: Record<string, unknown>): Promise<void> {
@@ -30,11 +34,15 @@ export class EventTracker {
       throw LinkFortyError.notInitialized();
     }
 
+    // Stamp the event with the active last-click attribution + session so it can
+    // be credited to the originating deep link. Stamped at event time, so a
+    // queued event keeps its point-in-time attribution.
     const event: EventRequest = {
       installId,
       eventName: name,
       eventData: properties ?? {},
       timestamp: new Date().toISOString(),
+      ...this.attribution?.getStamp(),
     };
 
     try {
