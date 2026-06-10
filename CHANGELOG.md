@@ -1,3 +1,7 @@
+## 1.6.0 (2026-06-10)
+
+* feat(sdk): report SDK name + version (SIT-235 · Expo) (#5) ([554b45d](https://github.com/LinkForty/mobile-sdk-expo/commit/554b45d)), closes [#5](https://github.com/LinkForty/mobile-sdk-expo/issues/5)
+
 ## 1.5.0 (2026-06-10)
 
 * feat: port last-click attribution + autoTrackNavigation to the Expo SDK (SIT-237) (#4) ([418c160](https://github.com/LinkForty/mobile-sdk-expo/commit/418c160)), closes [#4](https://github.com/LinkForty/mobile-sdk-expo/issues/4)
