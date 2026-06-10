@@ -1,3 +1,7 @@
+## 1.5.0 (2026-06-10)
+
+* feat: port last-click attribution + autoTrackNavigation to the Expo SDK (SIT-237) (#4) ([418c160](https://github.com/LinkForty/mobile-sdk-expo/commit/418c160)), closes [#4](https://github.com/LinkForty/mobile-sdk-expo/issues/4)
+
 ## 1.4.0 (2026-05-04)
 
 * feat: add appToken config option for Cloud organic-install attribution (#1) ([8261ca4](https://github.com/LinkForty/mobile-sdk-expo/commit/8261ca4)), closes [#1](https://github.com/LinkForty/mobile-sdk-expo/issues/1) [LinkForty/cloud#76](https://github.com/LinkForty/cloud/issues/76)
