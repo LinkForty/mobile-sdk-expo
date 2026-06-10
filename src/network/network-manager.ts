@@ -1,5 +1,6 @@
 import { LinkFortyError } from '../errors/linkforty-error';
 import { logger } from '../logger';
+import { SDK_NAME, SDK_VERSION } from '../version';
 
 export interface NetworkManagerProtocol {
   request<T>(endpoint: string, options?: RequestInit): Promise<T>;
@@ -67,6 +68,8 @@ export class NetworkManager implements NetworkManagerProtocol {
 
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
+      // SDK identity header (SIT-235) — name/version on every SDK request.
+      'X-LinkForty-SDK': `${SDK_NAME}/${SDK_VERSION}`,
       ...(options.headers as Record<string, string> | undefined),
     };
 

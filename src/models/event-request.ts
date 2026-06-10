@@ -9,4 +9,7 @@ export interface EventRequest {
   attributedClickId?: string;
   linkOpenedAt?: string;
   sessionId?: string;
+  // SDK identity for health/version diagnostics (SIT-235)
+  sdkName?: string;
+  sdkVersion?: string;
 }

@@ -5,6 +5,7 @@ import type { AttributionContext } from '../attribution/attribution-context';
 import { EventQueue } from './event-queue';
 import { LinkFortyError } from '../errors/linkforty-error';
 import { logger } from '../logger';
+import { SDK_NAME, SDK_VERSION } from '../version';
 
 export class EventTracker {
   private readonly network: NetworkManagerProtocol;
@@ -43,6 +44,9 @@ export class EventTracker {
       eventData: properties ?? {},
       timestamp: new Date().toISOString(),
       ...this.attribution?.getStamp(),
+      // SDK identity for health/version diagnostics (SIT-235)
+      sdkName: SDK_NAME,
+      sdkVersion: SDK_VERSION,
     };
 
     try {
