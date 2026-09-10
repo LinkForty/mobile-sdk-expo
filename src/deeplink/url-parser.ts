@@ -52,7 +52,46 @@ export function buildQueryString(params: Record<string, string>): string {
     .join('&');
 }
 
-const UTM_KEYS = new Set(['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content']);
+/**
+ * Names LinkForty consumes, which are never a custom parameter:
+ *   utm_*    surfaced separately as utmParameters
+ *   fp_*     fingerprint signals the SDK appends when resolving a link, and
+ *            which the redirect reads server-side for attribution
+ *   lf_click the click id the redirect appends to a destination URL
+ *
+ * Mirrors the server's own filter so a direct open and a deferred install agree
+ * on what reaches the app. A tapped short link would not normally carry the last
+ * two, but the URL is public and anyone can append them.
+ */
+function isReservedParam(key: string): boolean {
+  const lower = key.toLowerCase();
+  return lower.startsWith('utm_') || lower.startsWith('fp_') || lower === 'lf_click';
+}
+
+/**
+ * Overlay the parameters from the opened URL onto the server's payload.
+ *
+ * Resolving a short code returns the link's *stored* configuration; the server
+ * cannot know what was appended to the URL that was actually tapped. The SDK
+ * does, having just parsed it. Without this a link shared as `?slug=titanic`
+ * reaches the app with that value missing on a direct open, while the same link
+ * after a deferred install carries it — the server merges the click's parameters
+ * there. This applies the same rule where no click row exists.
+ *
+ * URL values win on a collision, matching that server-side precedence. Only
+ * `customParameters` is merged: `linkId`, `deepLinkPath`, `appScheme`, the store
+ * URLs and `utmParameters` are server truth a local parse cannot know.
+ */
+export function mergeUrlParameters(
+  resolved: DeepLinkData,
+  fromUrl: Record<string, string> | undefined,
+): DeepLinkData {
+  if (!fromUrl || Object.keys(fromUrl).length === 0) return resolved;
+  return {
+    ...resolved,
+    customParameters: { ...(resolved.customParameters ?? {}), ...fromUrl },
+  };
+}
 
 export function parseDeepLinkUrl(url: string, baseUrl?: string): DeepLinkData | null {
   // If baseUrl is set, only parse URLs matching it
@@ -82,7 +121,7 @@ export function parseDeepLinkUrl(url: string, baseUrl?: string): DeepLinkData | 
   const customParameters: Record<string, string> = {};
   let hasCustom = false;
   for (const [key, value] of parsed.searchParams) {
-    if (!UTM_KEYS.has(key)) {
+    if (!isReservedParam(key)) {
       customParameters[key] = value;
       hasCustom = true;
     }

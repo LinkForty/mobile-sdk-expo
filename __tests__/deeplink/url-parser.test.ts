@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { parseUrlString, buildQueryString, parseDeepLinkUrl } from '../../src/deeplink/url-parser';
+import { parseUrlString, buildQueryString, parseDeepLinkUrl, mergeUrlParameters } from '../../src/deeplink/url-parser';
+import type { DeepLinkData } from '../../src/models/deep-link-data';
 
 describe('parseUrlString', () => {
   it('parses a simple URL', () => {
@@ -114,5 +115,66 @@ describe('parseDeepLinkUrl', () => {
   it('returns null for URL with no path segments', () => {
     const result = parseDeepLinkUrl('https://go.example.com/', 'https://go.example.com');
     expect(result).toBeNull();
+  });
+});
+
+const BASE = 'https://go.example.com';
+const resolved = (over: Partial<DeepLinkData> = {}): DeepLinkData =>
+  ({ shortCode: 'abc123', ...over }) as DeepLinkData;
+
+describe('parseDeepLinkUrl — reserved names', () => {
+  it('keeps ordinary parameters as customParameters', () => {
+    const d = parseDeepLinkUrl(`${BASE}/abc123?slug=titanic&promo=new-year`, BASE);
+    expect(d?.customParameters).toEqual({ slug: 'titanic', promo: 'new-year' });
+  });
+
+  it('drops the names LinkForty consumes', () => {
+    // utm_* is surfaced as utmParameters; fp_* is a fingerprint signal read
+    // server-side; lf_click is the id appended to a destination URL. None of
+    // them is the app's data, and the server excludes them too.
+    const d = parseDeepLinkUrl(
+      `${BASE}/abc123?slug=titanic&utm_source=ig&fp_tz=UTC&lf_click=abc`,
+      BASE,
+    );
+    expect(d?.customParameters).toEqual({ slug: 'titanic' });
+  });
+
+  it('matches reserved names case-insensitively', () => {
+    const d = parseDeepLinkUrl(`${BASE}/abc123?UTM_Source=ig&FP_TZ=UTC&LF_Click=x`, BASE);
+    expect(d?.customParameters).toBeUndefined();
+  });
+
+  it('still surfaces UTM values under utmParameters', () => {
+    const d = parseDeepLinkUrl(`${BASE}/abc123?utm_source=instagram`, BASE);
+    expect(d?.utmParameters?.source).toBe('instagram');
+  });
+});
+
+describe('mergeUrlParameters', () => {
+  it('adds URL parameters when the link configures none', () => {
+    expect(mergeUrlParameters(resolved(), { slug: 'titanic' }).customParameters)
+      .toEqual({ slug: 'titanic' });
+  });
+
+  it('lets a URL parameter override a configured one', () => {
+    const out = mergeUrlParameters(
+      resolved({ customParameters: { slug: 'default', keep: 'me' } }),
+      { slug: 'titanic' },
+    );
+    expect(out.customParameters).toEqual({ slug: 'titanic', keep: 'me' });
+  });
+
+  it('returns the payload untouched when the URL carried nothing', () => {
+    const input = resolved({ customParameters: { a: '1' } });
+    expect(mergeUrlParameters(input, undefined)).toBe(input);
+    expect(mergeUrlParameters(input, {})).toBe(input);
+  });
+
+  it('never overwrites fields only the server knows', () => {
+    const input = resolved({ linkId: 'l1', deepLinkPath: '/p/1', appScheme: 'myapp' });
+    const out = mergeUrlParameters(input, { slug: 'titanic' });
+    expect(out.linkId).toBe('l1');
+    expect(out.deepLinkPath).toBe('/p/1');
+    expect(out.appScheme).toBe('myapp');
   });
 });
