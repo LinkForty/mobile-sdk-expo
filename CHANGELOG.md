@@ -1,3 +1,7 @@
+## <small>1.6.1 (2026-09-10)</small>
+
+* fix(deeplink): keep URL parameters on a direct open (#6) ([39ddc1d](https://github.com/LinkForty/mobile-sdk-expo/commit/39ddc1d)), closes [#6](https://github.com/LinkForty/mobile-sdk-expo/issues/6)
+
 ## 1.6.0 (2026-06-10)
 
 * feat(sdk): report SDK name + version (SIT-235 · Expo) (#5) ([554b45d](https://github.com/LinkForty/mobile-sdk-expo/commit/554b45d)), closes [#5](https://github.com/LinkForty/mobile-sdk-expo/issues/5)
