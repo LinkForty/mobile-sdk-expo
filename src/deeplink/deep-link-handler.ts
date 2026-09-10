@@ -2,7 +2,7 @@ import * as Linking from 'expo-linking';
 import type { FingerprintCollectorProtocol } from '../fingerprint/fingerprint-collector';
 import type { NetworkManagerProtocol } from '../network/network-manager';
 import type { DeepLinkData } from '../models/deep-link-data';
-import { parseDeepLinkUrl, parseUrlString, buildQueryString } from './url-parser';
+import { parseDeepLinkUrl, parseUrlString, buildQueryString, mergeUrlParameters } from './url-parser';
 import { logger } from '../logger';
 
 export type DeferredDeepLinkCallback = (deepLinkData: DeepLinkData | null) => void;
@@ -113,7 +113,11 @@ export class DeepLinkHandler {
     if (localData && url.startsWith(this.baseUrl)) {
       this.resolveUrl(url)
         .then((resolvedData) => {
-          const data = resolvedData ?? localData;
+          // The resolve returns the link's stored configuration; the
+          // parameters on the URL that was tapped are known only here.
+          const data = resolvedData
+            ? mergeUrlParameters(resolvedData, localData?.customParameters)
+            : localData;
           for (const cb of this.deepLinkCallbacks) cb(url, data);
         })
         .catch(() => {
