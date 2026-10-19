@@ -15,7 +15,7 @@ vi.mock('expo-application', () => ({
 
 // Mock expo-localization
 vi.mock('expo-localization', () => ({
-  getLocales: () => [{ languageTag: 'en-US' }],
+  getLocales: vi.fn(() => [{ languageTag: 'en-US', languageCode: 'en', regionCode: 'US' }]),
   getCalendars: () => [{ timeZone: 'America/New_York' }],
 }));
 

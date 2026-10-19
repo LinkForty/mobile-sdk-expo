@@ -3,6 +3,7 @@ import * as Application from 'expo-application';
 import { getLocales, getCalendars } from 'expo-localization';
 import { Platform, Dimensions } from 'react-native';
 import type { DeviceFingerprint } from '../models/device-fingerprint';
+import { languageFromLocale } from './language-tag';
 
 export interface FingerprintCollectorProtocol {
   collect(attributionWindowHours: number, deviceId?: string): DeviceFingerprint;
@@ -22,7 +23,7 @@ export class FingerprintCollector implements FingerprintCollectorProtocol {
     return {
       userAgent: `${appName}/${appVersion} ${platform}/${platformVersion}`,
       timezone: calendars[0]?.timeZone ?? 'UTC',
-      language: locales[0]?.languageTag ?? 'en-US',
+      language: languageFromLocale(locales[0]) ?? 'en-US',
       screenWidth: Math.round(width),
       screenHeight: Math.round(height),
       platform,
