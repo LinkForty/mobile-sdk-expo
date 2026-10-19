@@ -1,4 +1,5 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
+import { getLocales } from 'expo-localization';
 import { FingerprintCollector } from '../../src/fingerprint/fingerprint-collector';
 
 describe('FingerprintCollector', () => {
@@ -27,5 +28,17 @@ describe('FingerprintCollector', () => {
   it('respects custom attribution window', () => {
     const fp = collector.collect(24);
     expect(fp.attributionWindowHours).toBe(24);
+  });
+
+  it('sends language-region for a locale with regional preferences', () => {
+    vi.mocked(getLocales).mockReturnValueOnce([
+      { languageTag: 'en-ES-u-fw-mon-mu-celsius', languageCode: 'en', regionCode: 'ES' },
+    ] as ReturnType<typeof getLocales>);
+    expect(collector.collect(168).language).toBe('en-ES');
+  });
+
+  it('falls back to en-US when no locale is reported', () => {
+    vi.mocked(getLocales).mockReturnValueOnce([]);
+    expect(collector.collect(168).language).toBe('en-US');
   });
 });
