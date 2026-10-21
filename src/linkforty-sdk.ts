@@ -102,6 +102,10 @@ export class LinkFortySDK {
 
     this._isInitialized = true;
 
+    // Only the launch that reports the install delivers a deferred deep link;
+    // later launches return the cached attribution without a callback.
+    const isNewInstall = await this.attributionManager.isFirstLaunch();
+
     // Report install
     const attributionWindowHours = config.attributionWindowHours ?? 168;
     const response = await this.attributionManager.reportInstall(
@@ -110,15 +114,19 @@ export class LinkFortySDK {
       config.appToken,
     );
 
-    // If attributed, deliver deferred deep link + seed the attribution context so
-    // the new user's first-session events credit the install link.
-    if (response.attributed && response.deepLinkData) {
-      if (response.deepLinkData.linkId) {
-        await attributionContext.recordDeepLinkOpen(response.deepLinkData.linkId);
+    // On the install's launch, deliver the deferred deep link (null for an
+    // organic install) and seed the attribution context so the new user's
+    // first-session events credit the install link. Later launches keep the
+    // last-clicked link the context restored.
+    if (isNewInstall) {
+      if (response.attributed && response.deepLinkData) {
+        if (response.deepLinkData.linkId) {
+          await attributionContext.recordDeepLinkOpen(response.deepLinkData.linkId);
+        }
+        deepLinkHandler.deliverDeferredDeepLink(response.deepLinkData);
+      } else {
+        deepLinkHandler.deliverDeferredDeepLink(null);
       }
-      deepLinkHandler.deliverDeferredDeepLink(response.deepLinkData);
-    } else {
-      deepLinkHandler.deliverDeferredDeepLink(null);
     }
 
     // Start listening for direct deep links
