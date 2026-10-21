@@ -9,7 +9,7 @@ export type {
   NavigationRouteLike,
   NavigationContainerRefLike,
 } from './models/config';
-export type { DeepLinkData } from './models/deep-link-data';
+export type { DeepLinkData, AttributionMethod } from './models/deep-link-data';
 export type { InstallAttributionResponse } from './models/install-response';
 export type { UTMParameters } from './models/utm-parameters';
 export type { DeviceFingerprint } from './models/device-fingerprint';

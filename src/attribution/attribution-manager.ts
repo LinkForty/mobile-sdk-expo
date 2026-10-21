@@ -115,6 +115,9 @@ export class AttributionManager {
     const installId = await this.storage.getInstallId();
     const deepLinkData = await this.storage.getInstallData();
 
+    // Only the link data is cached, so the response-level attributionMethod
+    // and competingLinks stay undefined here; the cached deepLinkData keeps
+    // whatever match fields the server sent with it.
     return {
       installId: installId ?? '',
       attributed: deepLinkData !== null,

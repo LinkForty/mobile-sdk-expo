@@ -152,6 +152,99 @@ describe('AttributionManager', () => {
     expect(result.deepLinkData?.customParameters).toEqual({ route: 'PRODUCT', id: '42' });
   });
 
+  it('passes the match-certainty fields through on the response and the cached link', async () => {
+    const serverResponse: InstallAttributionResponse = {
+      installId: 'id-2',
+      attributed: true,
+      confidenceScore: 80,
+      matchedFactors: ['ip', 'timezone'],
+      attributionMethod: 'fingerprint',
+      competingLinks: 2,
+      deepLinkData: {
+        shortCode: 'gift',
+        confidenceScore: 80,
+        matchedFactors: ['ip', 'timezone'],
+        attributionMethod: 'fingerprint',
+        competingLinks: 2,
+      },
+    };
+
+    const manager = new AttributionManager(createMockNetwork(serverResponse), storage, fingerprint);
+    const result = await manager.reportInstall(168);
+
+    expect(result.attributionMethod).toBe('fingerprint');
+    expect(result.competingLinks).toBe(2);
+    expect(result.deepLinkData).toMatchObject({
+      confidenceScore: 80,
+      matchedFactors: ['ip', 'timezone'],
+      attributionMethod: 'fingerprint',
+      competingLinks: 2,
+    });
+    expect(await manager.getInstallData()).toMatchObject({
+      confidenceScore: 80,
+      matchedFactors: ['ip', 'timezone'],
+      attributionMethod: 'fingerprint',
+      competingLinks: 2,
+    });
+  });
+
+  it('passes through competingLinks 0 and attributionMethod none for an organic install', async () => {
+    const manager = new AttributionManager(
+      createMockNetwork({
+        installId: 'organic',
+        attributed: false,
+        confidenceScore: 0,
+        matchedFactors: [],
+        attributionMethod: 'none',
+        competingLinks: 0,
+        deepLinkData: null,
+      }),
+      storage,
+      fingerprint,
+    );
+    const result = await manager.reportInstall(168);
+
+    expect(result.attributionMethod).toBe('none');
+    expect(result.competingLinks).toBe(0);
+  });
+
+  it('leaves the match-certainty fields undefined when the server omits them', async () => {
+    const manager = new AttributionManager(
+      createMockNetwork({
+        installId: 'id-3',
+        attributed: true,
+        confidenceScore: 90,
+        matchedFactors: ['ip'],
+        deepLinkData: { shortCode: 'old-server' },
+      }),
+      storage,
+      fingerprint,
+    );
+    const result = await manager.reportInstall(168);
+
+    expect(result.attributionMethod).toBeUndefined();
+    expect(result.competingLinks).toBeUndefined();
+    expect(result.deepLinkData?.attributionMethod).toBeUndefined();
+    expect(result.deepLinkData?.competingLinks).toBeUndefined();
+  });
+
+  it('leaves the response-level match-certainty fields undefined on later launches', async () => {
+    await storage.saveInstallId('cached-id');
+    await storage.saveInstallData({ shortCode: 'cached', attributionMethod: 'fingerprint', competingLinks: 1 });
+    await storage.setHasLaunched();
+
+    const manager = new AttributionManager(
+      createMockNetwork({ installId: 'x', attributed: false, confidenceScore: 0, matchedFactors: [], deepLinkData: null }),
+      storage,
+      fingerprint,
+    );
+    const result = await manager.reportInstall(168);
+
+    expect(result.attributionMethod).toBeUndefined();
+    expect(result.competingLinks).toBeUndefined();
+    expect(result.deepLinkData?.competingLinks).toBe(1);
+  });
+
   it('getInstallId returns cached value', async () => {
     await storage.saveInstallId('my-id');
     const manager = new AttributionManager(
