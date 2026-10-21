@@ -1,3 +1,7 @@
+## <small>1.7.1 (2026-10-21)</small>
+
+* fix(deeplink): deliver the deferred deep link once, on the launch that reports the install (#9) ([ed4d0e1](https://github.com/LinkForty/mobile-sdk-expo/commit/ed4d0e1)), closes [#9](https://github.com/LinkForty/mobile-sdk-expo/issues/9)
+
 ## 1.7.0 (2026-10-21)
 
 * feat(deeplink): look up links on the workspace's link hosts, and name the app on every request (#8) ([38e9101](https://github.com/LinkForty/mobile-sdk-expo/commit/38e9101)), closes [#8](https://github.com/LinkForty/mobile-sdk-expo/issues/8)
