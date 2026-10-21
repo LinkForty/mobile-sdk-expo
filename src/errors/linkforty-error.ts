@@ -13,12 +13,15 @@ export enum LinkFortyErrorCode {
 export class LinkFortyError extends Error {
   readonly code: LinkFortyErrorCode;
   readonly cause?: Error;
+  /** The HTTP status, for an `INVALID_RESPONSE` error. */
+  readonly statusCode?: number;
 
-  constructor(code: LinkFortyErrorCode, message: string, cause?: Error) {
+  constructor(code: LinkFortyErrorCode, message: string, cause?: Error, statusCode?: number) {
     super(message);
     this.name = 'LinkFortyError';
     this.code = code;
     this.cause = cause;
+    this.statusCode = statusCode;
   }
 
   static notInitialized(): LinkFortyError {
@@ -55,6 +58,8 @@ export class LinkFortyError extends Error {
     return new LinkFortyError(
       LinkFortyErrorCode.INVALID_RESPONSE,
       `Invalid server response (status: ${statusCode})${detail}`,
+      undefined,
+      statusCode,
     );
   }
 

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseUrlString, buildQueryString, parseDeepLinkUrl, mergeUrlParameters } from '../../src/deeplink/url-parser';
+import { parseUrlString, buildQueryString, parseDeepLinkUrl, mergeUrlParameters, hostOf } from '../../src/deeplink/url-parser';
 import type { DeepLinkData } from '../../src/models/deep-link-data';
 
 describe('parseUrlString', () => {
@@ -176,5 +176,19 @@ describe('mergeUrlParameters', () => {
     expect(out.linkId).toBe('l1');
     expect(out.deepLinkPath).toBe('/p/1');
     expect(out.appScheme).toBe('myapp');
+  });
+});
+
+describe('hostOf', () => {
+  it('returns the lowercased host of an http(s) URL', () => {
+    expect(hostOf('https://Acme.toapp.me/abc?x=1')).toBe('acme.toapp.me');
+    expect(hostOf('http://localhost:3000/abc')).toBe('localhost');
+    expect(hostOf('https://user:pw@links.acme.com#frag')).toBe('links.acme.com');
+    expect(hostOf('https://go.example.com')).toBe('go.example.com');
+  });
+
+  it('returns null for other schemes', () => {
+    expect(hostOf('myapp://product/1')).toBeNull();
+    expect(hostOf('not a url')).toBeNull();
   });
 });

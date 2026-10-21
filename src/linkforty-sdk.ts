@@ -12,6 +12,7 @@ import { FingerprintCollector } from './fingerprint/fingerprint-collector';
 import { AttributionManager } from './attribution/attribution-manager';
 import { AttributionContext } from './attribution/attribution-context';
 import { DeepLinkHandler } from './deeplink/deep-link-handler';
+import { LinkDomains } from './deeplink/link-domains';
 import { EventTracker } from './events/event-tracker';
 import { EventQueue } from './events/event-queue';
 import { NavigationTracker } from './navigation/navigation-tracker';
@@ -51,7 +52,7 @@ export class LinkFortySDK {
     });
 
     // Create managers
-    const networkManager = new NetworkManager(config.baseUrl, config.apiKey);
+    const networkManager = new NetworkManager(config.baseUrl, config.apiKey, config.appToken);
     const storageManager = new StorageManager();
     const fingerprintCollector = new FingerprintCollector();
     const eventQueue = new EventQueue();
@@ -78,10 +79,15 @@ export class LinkFortySDK {
       attributionContext,
     );
 
+    // The workspace's link hosts decide which URLs are looked up as links.
+    const linkDomains = new LinkDomains(config.baseUrl, networkManager, config.appToken);
+    linkDomains.start();
+
     const deepLinkHandler = new DeepLinkHandler(
       config.baseUrl,
       networkManager,
       fingerprintCollector,
+      linkDomains,
     );
     this.deepLinkHandler = deepLinkHandler;
 

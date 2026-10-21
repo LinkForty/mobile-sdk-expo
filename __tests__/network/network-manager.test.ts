@@ -48,6 +48,29 @@ describe('NetworkManager', () => {
     expect(result).toEqual({ success: true });
   });
 
+  it('sends the app token header when configured', async () => {
+    const tokenNetwork = new NetworkManager('https://go.example.com', undefined, 'at_test');
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({}),
+    });
+
+    await tokenNetwork.request('/api/test');
+    const call = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(call[1].headers['X-LinkForty-App-Token']).toBe('at_test');
+  });
+
+  it('omits the app token header without an app token', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({}),
+    });
+
+    await network.request('/api/test');
+    const call = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(call[1].headers).not.toHaveProperty('X-LinkForty-App-Token');
+  });
+
   it('does not include Authorization header without apiKey', async () => {
     const noKeyNetwork = new NetworkManager('https://go.example.com');
     globalThis.fetch = vi.fn().mockResolvedValue({
