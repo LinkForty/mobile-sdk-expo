@@ -8,7 +8,7 @@ import { AttributionContext } from '../src/attribution/attribution-context';
 // Mock fetch globally
 const mockFetch = vi.fn();
 
-function setupFetch(installResponse = {
+function setupFetch(installResponse: Record<string, unknown> = {
   installId: 'test-install-id',
   attributed: false,
   confidenceScore: 0,
@@ -112,6 +112,65 @@ describe('LinkFortySDK', () => {
       expect(callback).toHaveBeenCalledWith(
         expect.objectContaining({ shortCode: 'deferred' }),
       );
+    });
+
+    it('delivers the match-certainty fields on the deferred deep link', async () => {
+      setupFetch({
+        installId: 'attr-id',
+        attributed: true,
+        confidenceScore: 75,
+        matchedFactors: ['ip', 'user_agent'],
+        attributionMethod: 'fingerprint',
+        competingLinks: 1,
+        deepLinkData: {
+          shortCode: 'signin',
+          deepLinkParameters: { route: 'login' },
+          confidenceScore: 75,
+          matchedFactors: ['ip', 'user_agent'],
+          attributionMethod: 'fingerprint',
+          competingLinks: 1,
+        },
+      });
+
+      const result = await sdk.initialize(validConfig);
+      const callback = vi.fn();
+      sdk.onDeferredDeepLink(callback);
+
+      expect(result.attributionMethod).toBe('fingerprint');
+      expect(result.competingLinks).toBe(1);
+      expect(callback).toHaveBeenCalledWith(
+        expect.objectContaining({
+          shortCode: 'signin',
+          customParameters: { route: 'login' },
+          confidenceScore: 75,
+          matchedFactors: ['ip', 'user_agent'],
+          attributionMethod: 'fingerprint',
+          competingLinks: 1,
+        }),
+      );
+    });
+
+    it('delivers a deferred deep link without match-certainty fields when the server omits them', async () => {
+      setupFetch({
+        installId: 'attr-id',
+        attributed: true,
+        confidenceScore: 90,
+        matchedFactors: ['ip'],
+        deepLinkData: { shortCode: 'deferred' },
+      });
+
+      const result = await sdk.initialize(validConfig);
+      const callback = vi.fn();
+      sdk.onDeferredDeepLink(callback);
+
+      expect(result.attributionMethod).toBeUndefined();
+      expect(result.competingLinks).toBeUndefined();
+      const delivered = callback.mock.calls[0][0];
+      expect(delivered.shortCode).toBe('deferred');
+      expect(delivered.confidenceScore).toBeUndefined();
+      expect(delivered.matchedFactors).toBeUndefined();
+      expect(delivered.attributionMethod).toBeUndefined();
+      expect(delivered.competingLinks).toBeUndefined();
     });
 
     it('delivers the deferred deep link only on the launch that reports the install', async () => {

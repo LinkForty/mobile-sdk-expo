@@ -77,6 +77,8 @@ A LinkForty link is resolved on the server for its `customParameters`, UTM param
 
 `onDeferredDeepLink` is called once, on the launch that reports the install: with the link's data, or `null` for an organic install. Later launches don't call it; `getInstallData()` returns the install's link data at any time.
 
+On a matched install, the deferred deep link also carries the match's certainty when the server sends it: `confidenceScore` (0-100), `matchedFactors`, `attributionMethod` (`'fingerprint'`) and `competingLinks`. `competingLinks` counts the other links that had a click from the install's network that also reached the confidence threshold. Above 0, another device's tap may be what led to this install, so an app acting on a sensitive link (sign-in, gift) can treat the match as unverified, for example by asking the user to confirm. The `InstallAttributionResponse` returned by `initialize()` carries `attributionMethod` (`'fingerprint'` or `'none'`) and `competingLinks` too, on the launch that reports the install. Direct opens never carry these fields, and older servers omit them.
+
 ### Event Tracking
 
 ```typescript
@@ -148,6 +150,7 @@ import { LinkFortySDK, LinkFortyError, LinkFortyErrorCode } from '@linkforty/mob
 import type {
   LinkFortyConfig,
   DeepLinkData,
+  AttributionMethod,
   InstallAttributionResponse,
   UTMParameters,
   DeviceFingerprint,

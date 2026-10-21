@@ -1,5 +1,8 @@
 import type { UTMParameters } from './utm-parameters';
 
+/** How an install was attributed: `'fingerprint'` when matched to a click, `'none'` when organic. */
+export type AttributionMethod = 'fingerprint' | 'none' | (string & {});
+
 export interface DeepLinkData {
   shortCode: string;
   iosUrl?: string;
@@ -11,4 +14,22 @@ export interface DeepLinkData {
   appScheme?: string;
   clickedAt?: string;
   linkId?: string;
+  // The four install-match fields below are set only on a deferred deep link
+  // (an install matched to a click), and only when the server sends them; a
+  // direct open never carries them.
+
+  /** Match confidence score (0-100). */
+  confidenceScore?: number;
+  /** Fingerprint factors that matched (e.g. `['ip', 'user_agent', 'timezone']`). */
+  matchedFactors?: string[];
+  /** How the install was attributed: `'fingerprint'` when matched to a click. */
+  attributionMethod?: AttributionMethod;
+  /**
+   * How many other links had a click from the install's network that also
+   * reached the confidence threshold; 0 means no other link was in contention.
+   * Above 0, another device's tap may be what led to this install, so an app
+   * acting on a sensitive link (sign-in, gift) can treat the match as
+   * unverified, for example by asking the user to confirm.
+   */
+  competingLinks?: number;
 }

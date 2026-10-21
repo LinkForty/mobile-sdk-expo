@@ -51,6 +51,15 @@ interface DeepLinkData {
   appScheme?: string;
   clickedAt?: string;
   linkId?: string;
+  // Install-match fields: set only on a deferred deep link, when the server sends them.
+  /** Match confidence score (0-100) */
+  confidenceScore?: number;
+  /** Matched fingerprint factors (e.g., ['ip', 'user_agent', 'timezone']) */
+  matchedFactors?: string[];
+  /** 'fingerprint' when the install was matched to a click */
+  attributionMethod?: 'fingerprint' | 'none' | string;
+  /** Other links with a click from the install's network that also reached the threshold (0 = none) */
+  competingLinks?: number;
 }
 
 interface InstallAttributionResponse {
@@ -61,6 +70,10 @@ interface InstallAttributionResponse {
   /** Matched fingerprint factors (e.g., ['ip', 'user_agent', 'timezone']) */
   matchedFactors: string[];
   deepLinkData: DeepLinkData | {};
+  /** 'fingerprint' when matched to a click, 'none' when organic; undefined from older servers and on later launches */
+  attributionMethod?: 'fingerprint' | 'none' | string;
+  /** Other links with a click from the install's network that also reached the threshold (0 = none); undefined from older servers and on later launches */
+  competingLinks?: number;
 }
 
 interface CreateLinkOptions {
@@ -152,6 +165,16 @@ LinkFortySDK.onDeferredDeepLink((data) => {
   if (data) {
     console.log('Attributed install from:', data.shortCode);
     router.push(`/${data.customParameters?.route}/${data.customParameters?.id}`);
+  }
+});
+```
+
+A deferred deep link carries `confidenceScore`, `matchedFactors`, `attributionMethod` and `competingLinks` when the server sends them (a direct open never does). `competingLinks` counts the other links that had a click from the install's network that also reached the confidence threshold. Above 0, another device's tap may be what led to this install, so an app acting on a sensitive link (sign-in, gift) can treat the match as unverified and ask the user to confirm:
+
+```typescript
+LinkFortySDK.onDeferredDeepLink((data) => {
+  if (data?.customParameters?.route === 'redeem-gift' && (data.competingLinks ?? 0) > 0) {
+    // Ask the user to confirm before redeeming
   }
 });
 ```
