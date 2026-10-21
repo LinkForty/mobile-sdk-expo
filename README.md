@@ -73,6 +73,8 @@ LinkForty.onDeepLink(callback);         // Direct (multiple callbacks supported)
 LinkForty.handleDeepLink(url);          // Manual URL pass-through
 ```
 
+A LinkForty link is resolved on the server for its `customParameters`, UTM parameters and metadata, falling back to a local parse if that fails; any other URL reaches `onDeepLink` with `data` set to `null`. A LinkForty link is an `http(s)` URL on your `baseUrl` host or, with `appToken` set, on one of your workspace's link hosts: its `toapp.me` label and verified custom domains. The SDK learns those hosts from the server at launch and saves them for the next one. With `appToken` set, a lookup answers only with your own workspace's links.
+
 ### Event Tracking
 
 ```typescript

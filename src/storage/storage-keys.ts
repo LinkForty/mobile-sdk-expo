@@ -4,4 +4,5 @@ export const STORAGE_KEYS = {
   FIRST_LAUNCH: '@linkforty:first_launch',
   EVENT_QUEUE: '@linkforty:event_queue',
   ATTRIBUTION: '@linkforty:attribution',
+  LINK_DOMAINS: '@linkforty:link_domains',
 } as const;

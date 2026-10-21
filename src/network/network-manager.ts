@@ -9,11 +9,13 @@ export interface NetworkManagerProtocol {
 export class NetworkManager implements NetworkManagerProtocol {
   private readonly baseUrl: string;
   private readonly apiKey: string | undefined;
+  private readonly appToken: string | undefined;
   private readonly maxRetries = 3;
 
-  constructor(baseUrl: string, apiKey?: string) {
+  constructor(baseUrl: string, apiKey?: string, appToken?: string) {
     this.baseUrl = baseUrl.replace(/\/+$/, '');
     this.apiKey = apiKey;
+    this.appToken = appToken;
   }
 
   async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
@@ -75,6 +77,11 @@ export class NetworkManager implements NetworkManagerProtocol {
 
     if (this.apiKey) {
       headers['Authorization'] = `Bearer ${this.apiKey}`;
+    }
+
+    // Names the app's workspace: scopes link lookups to it.
+    if (this.appToken) {
+      headers['X-LinkForty-App-Token'] = this.appToken;
     }
 
     let response: Response;

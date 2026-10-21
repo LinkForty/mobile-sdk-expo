@@ -2,7 +2,8 @@ import * as Linking from 'expo-linking';
 import type { FingerprintCollectorProtocol } from '../fingerprint/fingerprint-collector';
 import type { NetworkManagerProtocol } from '../network/network-manager';
 import type { DeepLinkData } from '../models/deep-link-data';
-import { parseDeepLinkUrl, parseUrlString, buildQueryString, mergeUrlParameters } from './url-parser';
+import { parseDeepLinkUrl, parseUrlString, buildQueryString, mergeUrlParameters, hostOf } from './url-parser';
+import type { LinkDomains } from './link-domains';
 import { logger } from '../logger';
 
 export type DeferredDeepLinkCallback = (deepLinkData: DeepLinkData | null) => void;
@@ -12,6 +13,7 @@ export class DeepLinkHandler {
   private baseUrl: string;
   private network: NetworkManagerProtocol;
   private fingerprint: FingerprintCollectorProtocol;
+  private linkDomains: LinkDomains | null;
 
   private deferredCallbacks: DeferredDeepLinkCallback[] = [];
   private deepLinkCallbacks: DeepLinkCallback[] = [];
@@ -23,10 +25,12 @@ export class DeepLinkHandler {
     baseUrl: string,
     network: NetworkManagerProtocol,
     fingerprint: FingerprintCollectorProtocol,
+    linkDomains?: LinkDomains,
   ) {
     this.baseUrl = baseUrl.replace(/\/+$/, '');
     this.network = network;
     this.fingerprint = fingerprint;
+    this.linkDomains = linkDomains ?? null;
   }
 
   /**
@@ -106,26 +110,38 @@ export class DeepLinkHandler {
 
     logger.log('Handling deep link:', url);
 
-    // Parse locally first as fallback
-    const localData = parseDeepLinkUrl(url, this.baseUrl);
+    void this.isLinkFortyUrl(url).then((lookUp) => {
+      // A LinkForty URL is parsed locally as the fallback, then resolved on
+      // the server; any other URL reaches the callbacks as null.
+      const localData = lookUp ? parseDeepLinkUrl(url) : null;
+      if (!localData) {
+        for (const cb of this.deepLinkCallbacks) cb(url, null);
+        return;
+      }
 
-    // If this is a LinkForty URL, try server-side resolution
-    if (localData && url.startsWith(this.baseUrl)) {
       this.resolveUrl(url)
         .then((resolvedData) => {
           // The resolve returns the link's stored configuration; the
           // parameters on the URL that was tapped are known only here.
           const data = resolvedData
-            ? mergeUrlParameters(resolvedData, localData?.customParameters)
+            ? mergeUrlParameters(resolvedData, localData.customParameters)
             : localData;
           for (const cb of this.deepLinkCallbacks) cb(url, data);
         })
         .catch(() => {
           for (const cb of this.deepLinkCallbacks) cb(url, localData);
         });
-    } else {
-      for (const cb of this.deepLinkCallbacks) cb(url, localData);
-    }
+    });
+  }
+
+  /**
+   * Whether `url` is on the base URL's host or one of the workspace's link
+   * hosts (see LinkDomains).
+   */
+  private async isLinkFortyUrl(url: string): Promise<boolean> {
+    if (this.linkDomains) return this.linkDomains.shouldLookUp(url);
+    const host = hostOf(url);
+    return host !== null && host === hostOf(this.baseUrl);
   }
 
   private async resolveUrl(url: string): Promise<DeepLinkData | null> {

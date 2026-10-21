@@ -46,6 +46,20 @@ export function parseUrlString(url: string): ParsedUrl | null {
   }
 }
 
+/**
+ * The lowercased host of an `http(s)` URL, without port or credentials; null
+ * for any other scheme. Hermes-safe.
+ */
+export function hostOf(url: string): string | null {
+  const match = /^https?:\/\/([^/?#]*)/i.exec(url.trim());
+  if (!match) return null;
+  const authority = match[1].substring(match[1].lastIndexOf('@') + 1);
+  const host = authority.startsWith('[')
+    ? authority.substring(0, authority.indexOf(']') + 1)
+    : authority.split(':')[0];
+  return host ? host.toLowerCase() : null;
+}
+
 export function buildQueryString(params: Record<string, string>): string {
   return Object.entries(params)
     .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
