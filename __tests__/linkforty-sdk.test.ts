@@ -3,6 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinkFortySDK } from '../src/linkforty-sdk';
 import { LinkFortyError, LinkFortyErrorCode } from '../src/errors/linkforty-error';
 import type { LinkFortyConfig } from '../src/models/config';
+import { AttributionContext } from '../src/attribution/attribution-context';
 
 // Mock fetch globally
 const mockFetch = vi.fn();
@@ -111,6 +112,72 @@ describe('LinkFortySDK', () => {
       expect(callback).toHaveBeenCalledWith(
         expect.objectContaining({ shortCode: 'deferred' }),
       );
+    });
+
+    it('delivers the deferred deep link only on the launch that reports the install', async () => {
+      setupFetch({
+        installId: 'attr-id',
+        attributed: true,
+        confidenceScore: 90,
+        matchedFactors: ['ip'],
+        deepLinkData: { shortCode: 'deferred', linkId: 'install-link' },
+      });
+      await sdk.initialize(validConfig);
+      const first = vi.fn();
+      sdk.onDeferredDeepLink(first);
+      expect(first).toHaveBeenCalledTimes(1);
+
+      // Next launch
+      sdk.reset();
+      sdk = new LinkFortySDK();
+      const result = await sdk.initialize(validConfig);
+      const second = vi.fn();
+      sdk.onDeferredDeepLink(second);
+
+      expect(second).not.toHaveBeenCalled();
+      expect(result.attributed).toBe(true);
+      expect((await sdk.getInstallData())?.shortCode).toBe('deferred');
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+    });
+
+    it('delivers null once for an organic install', async () => {
+      setupFetch();
+      await sdk.initialize(validConfig);
+      const first = vi.fn();
+      sdk.onDeferredDeepLink(first);
+      expect(first).toHaveBeenCalledWith(null);
+
+      sdk.reset();
+      sdk = new LinkFortySDK();
+      await sdk.initialize(validConfig);
+      const second = vi.fn();
+      sdk.onDeferredDeepLink(second);
+      expect(second).not.toHaveBeenCalled();
+    });
+
+    it('keeps the last-clicked link across launches instead of the install link', async () => {
+      setupFetch({
+        installId: 'attr-id',
+        attributed: true,
+        confidenceScore: 90,
+        matchedFactors: ['ip'],
+        deepLinkData: { shortCode: 'deferred', linkId: 'install-link' },
+      });
+      await sdk.initialize(validConfig);
+
+      // A re-engagement link opens the app later in that session
+      const context = new AttributionContext();
+      await context.load();
+      await context.recordDeepLinkOpen('reengage-link');
+
+      // Next launch
+      sdk.reset();
+      sdk = new LinkFortySDK();
+      await sdk.initialize(validConfig);
+
+      const restored = new AttributionContext();
+      await restored.load();
+      expect(restored.getActive()?.linkId).toBe('reengage-link');
     });
 
     it('returns organic response when network fails', async () => {
