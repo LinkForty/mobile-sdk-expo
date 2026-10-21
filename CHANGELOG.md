@@ -1,3 +1,7 @@
+## 1.8.0 (2026-10-21)
+
+* feat(attribution): expose install-match certainty fields (#10) ([cd7d1b9](https://github.com/LinkForty/mobile-sdk-expo/commit/cd7d1b9)), closes [#10](https://github.com/LinkForty/mobile-sdk-expo/issues/10)
+
 ## <small>1.7.1 (2026-10-21)</small>
 
 * fix(deeplink): deliver the deferred deep link once, on the launch that reports the install (#9) ([ed4d0e1](https://github.com/LinkForty/mobile-sdk-expo/commit/ed4d0e1)), closes [#9](https://github.com/LinkForty/mobile-sdk-expo/issues/9)
