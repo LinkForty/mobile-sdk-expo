@@ -7,7 +7,7 @@ Expo SDK for [LinkForty](https://github.com/LinkForty/core) — the open-source 
 
 ## Features
 
-- Deferred deep linking (install attribution via device fingerprinting)
+- Deferred deep linking (install attribution: exact from the Google Play install referrer on Android, otherwise by device fingerprinting)
 - Direct deep linking with server-side URL resolution
 - Event tracking with offline queue (persists across app restarts)
 - Revenue tracking
@@ -77,7 +77,9 @@ A LinkForty link is resolved on the server for its `customParameters`, UTM param
 
 `onDeferredDeepLink` is called once, on the launch that reports the install: with the link's data, or `null` for an organic install. Later launches don't call it; `getInstallData()` returns the install's link data at any time.
 
-On a matched install, the deferred deep link also carries the match's certainty when the server sends it: `confidenceScore` (0-100), `matchedFactors`, `attributionMethod` (`'fingerprint'`) and `competingLinks`. `competingLinks` counts the other links that had a click from the install's network that also reached the confidence threshold. Above 0, another device's tap may be what led to this install, so an app acting on a sensitive link (sign-in, gift) can treat the match as unverified, for example by asking the user to confirm. The `InstallAttributionResponse` returned by `initialize()` carries `attributionMethod` (`'fingerprint'` or `'none'`) and `competingLinks` too, on the launch that reports the install. Direct opens never carry these fields, and older servers omit them.
+On a matched install, the deferred deep link also carries the match's certainty when the server sends it: `confidenceScore` (0-100), `matchedFactors`, `attributionMethod` (`'install_referrer'` or `'fingerprint'`) and `competingLinks`. `competingLinks` counts the other links that had a click from the install's network that also reached the confidence threshold. Above 0, another device's tap may be what led to this install, so an app acting on a sensitive link (sign-in, gift) can treat the match as unverified, for example by asking the user to confirm. The `InstallAttributionResponse` returned by `initialize()` carries `attributionMethod` (`'fingerprint'` or `'none'`) and `competingLinks` too, on the launch that reports the install. Direct opens never carry these fields, and older servers omit them.
+
+On Android, the SDK reads the Google Play install referrer (through `expo-application`) on the launch that reports the install, waiting at most 2 seconds, and sends it with the install. A LinkForty link puts its click id in the referrer of the Play listing it sends a visitor to, so a server on `@linkforty/core` 1.41.1 or later matches the install to that exact click: `attributionMethod` is `'install_referrer'`, `confidenceScore` 100 and `competingLinks` 0. Without a referrer (another store, a sideload, no answer from Play) the install is matched by fingerprint. iOS has no install referrer.
 
 ### Event Tracking
 

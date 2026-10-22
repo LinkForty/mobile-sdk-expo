@@ -266,4 +266,42 @@ describe('AttributionManager', () => {
     await manager.clearData();
     expect(storage.clearAll).toHaveBeenCalled();
   });
+
+  describe('install referrer', () => {
+    const organic: InstallAttributionResponse = {
+      installId: 'install-1',
+      attributed: false,
+      confidenceScore: 0,
+      matchedFactors: [],
+      deepLinkData: null,
+    };
+
+    function sentBody(network: NetworkManagerProtocol) {
+      const [, init] = (network.request as ReturnType<typeof vi.fn>).mock.calls[0];
+      return JSON.parse((init as { body: string }).body);
+    }
+
+    it('sends the install referrer with the fingerprint', async () => {
+      const network = createMockNetwork(organic);
+      const manager = new AttributionManager(network, storage, fingerprint, async () => 'lf_click=abc');
+      await manager.reportInstall(168);
+      expect(sentBody(network)).toMatchObject({ installReferrer: 'lf_click=abc', userAgent: 'TestApp/1.0.0 ios/17.4' });
+    });
+
+    it('leaves installReferrer out when there is none', async () => {
+      const network = createMockNetwork(organic);
+      const manager = new AttributionManager(network, storage, fingerprint, async () => null);
+      await manager.reportInstall(168);
+      expect(sentBody(network)).not.toHaveProperty('installReferrer');
+    });
+
+    it('does not read the referrer once the install is reported', async () => {
+      await storage.setHasLaunched();
+      const read = vi.fn(async () => 'lf_click=abc');
+      const network = createMockNetwork(organic);
+      await new AttributionManager(network, storage, fingerprint, read).reportInstall(168);
+      expect(read).not.toHaveBeenCalled();
+      expect(network.request).not.toHaveBeenCalled();
+    });
+  });
 });

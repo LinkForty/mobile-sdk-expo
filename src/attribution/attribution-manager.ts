@@ -5,20 +5,24 @@ import type { InstallAttributionResponse } from '../models/install-response';
 import type { DeepLinkData } from '../models/deep-link-data';
 import { logger } from '../logger';
 import { SDK_NAME, SDK_VERSION } from '../version';
+import type { InstallReferrerReader } from './install-referrer';
 
 export class AttributionManager {
   private readonly network: NetworkManagerProtocol;
   private readonly storage: StorageManagerProtocol;
   private readonly fingerprint: FingerprintCollectorProtocol;
+  private readonly readInstallReferrer?: InstallReferrerReader;
 
   constructor(
     network: NetworkManagerProtocol,
     storage: StorageManagerProtocol,
     fingerprint: FingerprintCollectorProtocol,
+    readInstallReferrer?: InstallReferrerReader,
   ) {
     this.network = network;
     this.storage = storage;
     this.fingerprint = fingerprint;
+    this.readInstallReferrer = readInstallReferrer;
   }
 
   async reportInstall(
@@ -33,7 +37,10 @@ export class AttributionManager {
     }
 
     const fp = this.fingerprint.collect(attributionWindowHours, deviceId);
-    logger.log('Reporting install with fingerprint:', fp);
+    // The Play install referrer names the click exactly; without one the
+    // install is matched by fingerprint.
+    const installReferrer = this.readInstallReferrer ? await this.readInstallReferrer() : null;
+    logger.log('Reporting install with fingerprint:', fp, 'install referrer:', installReferrer);
 
     let response: InstallAttributionResponse;
     try {
@@ -47,6 +54,7 @@ export class AttributionManager {
           body: JSON.stringify({
             ...fp,
             ...(appToken ? { appToken } : {}),
+            ...(installReferrer ? { installReferrer } : {}),
             sdkName: SDK_NAME,
             sdkVersion: SDK_VERSION,
           }),

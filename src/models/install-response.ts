@@ -7,8 +7,9 @@ export interface InstallAttributionResponse {
   matchedFactors: string[];
   deepLinkData: DeepLinkData | null;
   /**
-   * How the install was attributed: `'fingerprint'` when matched to a click,
-   * `'none'` when organic. Undefined when the server does not send it, and on
+   * How the install was attributed: `'install_referrer'` when the Play
+   * install referrer named the click, `'fingerprint'` when device signals
+   * matched one, `'none'` when organic. Undefined when the server does not send it, and on
    * launches after the install's, which return the cached attribution.
    */
   attributionMethod?: AttributionMethod;
