@@ -1,7 +1,11 @@
 import type { UTMParameters } from './utm-parameters';
 
-/** How an install was attributed: `'fingerprint'` when matched to a click, `'none'` when organic. */
-export type AttributionMethod = 'fingerprint' | 'none' | (string & {});
+/**
+ * How an install was attributed: `'install_referrer'` when the Google Play
+ * install referrer named the click, `'fingerprint'` when device signals matched
+ * one, `'none'` when organic.
+ */
+export type AttributionMethod = 'install_referrer' | 'fingerprint' | 'none' | (string & {});
 
 export interface DeepLinkData {
   shortCode: string;
@@ -22,7 +26,7 @@ export interface DeepLinkData {
   confidenceScore?: number;
   /** Fingerprint factors that matched (e.g. `['ip', 'user_agent', 'timezone']`). */
   matchedFactors?: string[];
-  /** How the install was attributed: `'fingerprint'` when matched to a click. */
+  /** How the install was attributed: `'install_referrer'` or `'fingerprint'`. */
   attributionMethod?: AttributionMethod;
   /**
    * How many other links had a click from the install's network that also

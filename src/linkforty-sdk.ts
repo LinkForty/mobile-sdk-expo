@@ -10,6 +10,7 @@ import { NetworkManager } from './network/network-manager';
 import { StorageManager } from './storage/storage-manager';
 import { FingerprintCollector } from './fingerprint/fingerprint-collector';
 import { AttributionManager } from './attribution/attribution-manager';
+import { createPlayInstallReferrerReader } from './attribution/install-referrer';
 import { AttributionContext } from './attribution/attribution-context';
 import { DeepLinkHandler } from './deeplink/deep-link-handler';
 import { LinkDomains } from './deeplink/link-domains';
@@ -64,6 +65,7 @@ export class LinkFortySDK {
       networkManager,
       storageManager,
       fingerprintCollector,
+      createPlayInstallReferrerReader(),
     );
 
     // Last-click attribution context: restore any persisted active link before
