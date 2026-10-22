@@ -1,3 +1,7 @@
+## 1.9.0 (2026-10-22)
+
+* feat(attribution): send the Google Play install referrer with the install (#11) ([4e7980b](https://github.com/LinkForty/mobile-sdk-expo/commit/4e7980b)), closes [#11](https://github.com/LinkForty/mobile-sdk-expo/issues/11)
+
 ## 1.8.0 (2026-10-21)
 
 * feat(attribution): expose install-match certainty fields (#10) ([cd7d1b9](https://github.com/LinkForty/mobile-sdk-expo/commit/cd7d1b9)), closes [#10](https://github.com/LinkForty/mobile-sdk-expo/issues/10)
