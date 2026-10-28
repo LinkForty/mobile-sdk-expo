@@ -44,7 +44,7 @@ const MAX_PARAM_STRING_LENGTH = 256;
  * undefined when nothing survives (including an empty/omitted allow-list).
  */
 export function sanitizeScreenParams(
-  params: Record<string, unknown> | undefined,
+  params: object | undefined,
   allowList: string[] | undefined,
 ): Record<string, string | number | boolean> | undefined {
   if (!params || typeof params !== 'object' || !allowList || allowList.length === 0) {
@@ -53,7 +53,7 @@ export function sanitizeScreenParams(
 
   const allowed = new Set(allowList);
   const out: Record<string, string | number | boolean> = {};
-  for (const [key, value] of Object.entries(params)) {
+  for (const [key, value] of Object.entries(params as Record<string, unknown>)) {
     if (!allowed.has(key)) continue;
     if (typeof value === 'string') {
       out[key] =
