@@ -1,6 +1,6 @@
 # @linkforty/mobile-sdk-expo
 
-> Expo SDK for LinkForty — an open-source mobile attribution and deep link management platform. Pure JavaScript implementation for Expo apps. Handles deep linking, deferred deep linking (install attribution), in-app event tracking with offline queue, revenue tracking, and link creation. Works with LinkForty Cloud (linkforty.com) or self-hosted Core instances.
+> Expo SDK for LinkForty — an open-source mobile attribution and deep link management platform. Pure JavaScript implementation for Expo apps. Handles deep linking, deferred deep linking (install attribution), in-app event tracking with offline queue, revenue tracking, and link creation. Works with the hosted LinkForty service (linkforty.com) or a self-hosted `@linkforty/core` server.
 
 ## Installation
 
@@ -8,7 +8,7 @@
 npx expo install @linkforty/mobile-sdk-expo expo-device expo-application expo-localization expo-linking @react-native-async-storage/async-storage
 ```
 
-All dependencies are Expo-compatible and use the Expo module system.
+Supports Expo SDK 51 and later (built and tested against Expo SDK 58). `expo-device`, `expo-application`, `expo-localization`, `expo-linking` and `@react-native-async-storage/async-storage` (1.23.1 or later 2.x; 3.x is not supported) are peer dependencies: list them in the `npx expo install` command, as above, so you get the versions that match your app's Expo SDK. No config plugin is needed.
 
 ## TypeScript Types
 
@@ -19,16 +19,24 @@ interface LinkFortyConfig {
   /** API key — only needed if calling createLink() */
   apiKey?: string;
   /**
-   * Public workspace token (LinkForty Cloud only). Recommended — required
-   * for organic installs to be attributed to your workspace. Find it in
-   * the dashboard under Workspace Settings → App Token. Format:
-   * `at_<32 hex chars>`. Safe to ship in your app bundle.
+   * Public workspace token. Required on the hosted service: scopes install
+   * matching and link lookups to your workspace, so organic installs are
+   * attributed to it. Find it in the dashboard under Workspace Settings →
+   * App Token. Format: `at_<32 hex chars>`. Safe to ship in your app bundle.
    */
   appToken?: string;
   /** Enable debug logging (default: false) */
   debug?: boolean;
   /** Attribution window in hours (default: 168 = 7 days, range: 1-2160) */
   attributionWindowHours?: number;
+  /** Auto-emit `screen_view` events from React Navigation (default: false) */
+  autoTrackNavigation?: boolean | { captureParams?: string[]; debounceMs?: number };
+  /**
+   * React Navigation container ref, required with autoTrackNavigation. The refs
+   * from createNavigationContainerRef() and Expo Router's
+   * useNavigationContainerRef() assign without a cast.
+   */
+  navigationRef?: NavigationContainerRefLike;
 }
 
 interface DeepLinkData {
@@ -124,13 +132,13 @@ import LinkFortySDK from '@linkforty/mobile-sdk-expo';
 
 ### initialize(config: LinkFortyConfig): Promise\<InstallAttributionResponse\>
 
-Initialize the SDK, report the install, and return attribution data immediately. Must be called before any other method. HTTPS is required for `baseUrl` (except localhost for development).
+Initialize the SDK, report the install, and return attribution data. Must be called before any other method. HTTPS is required for `baseUrl` (except localhost for development). If the install report fails, it resolves as organic (`attributed: false`, empty `installId`) and the next launch reports the install again.
 
 ```typescript
 const attribution = await LinkFortySDK.initialize({
   baseUrl: 'https://go.yourdomain.com',
   apiKey: 'lf_live_abc123',         // optional — only for createLink()
-  appToken: 'at_a1b2c3d4...',       // recommended for Cloud — enables organic-install attribution
+  appToken: 'at_a1b2c3d4...',       // required on the hosted service — scopes installs and link lookups to your workspace
   debug: __DEV__,
   attributionWindowHours: 168,       // 7 days (default)
 });
@@ -145,7 +153,7 @@ console.log(attribution.matchedFactors);  // ['ip', 'user_agent', ...]
 
 ### onDeepLink(callback: DeepLinkCallback): void
 
-Register a callback for direct deep links — fires when user taps a LinkForty link and the app is already installed. Supports multiple callbacks.
+Register a callback for direct deep links — fires when user taps a link and the app is already installed. Supports multiple callbacks. The SDK handles the link that launched the app itself; a link handled before any callback is registered is held and delivered once to the first callback, so registering after `initialize()` resolves loses nothing.
 
 ```typescript
 LinkFortySDK.onDeepLink((url, data) => {
@@ -158,7 +166,7 @@ LinkFortySDK.onDeepLink((url, data) => {
 
 ### onDeferredDeepLink(callback: DeferredDeepLinkCallback): void
 
-Register a callback for deferred deep links — fires on first app launch if the install was attributed to a link click.
+Register a callback for deferred deep links — fires on the launch that reports the install, with the link's data, or `null` for an organic install (or a failed install report). Registering after `initialize()` still receives it.
 
 ```typescript
 LinkFortySDK.onDeferredDeepLink((data) => {
@@ -185,7 +193,7 @@ Manually pass a URL to the SDK for deep link handling. Use when you receive a UR
 
 ### trackEvent(name: string, properties?: Record\<string, unknown\>): Promise\<void\>
 
-Track in-app events. Failed sends are queued offline (max 100 events) and retried automatically on next successful send.
+Track in-app events. Rejects when the send fails, after queuing the event offline (max 100 events). Queued events are sent when `initialize()` has reported the install, when the app returns to the foreground, after the next successful send, and on `flushEvents()`. Each event carries a `clientEventId` that stays the same on every send, so a server on `@linkforty/core` 1.36.0 or later stores a resent event once.
 
 ```typescript
 await LinkFortySDK.trackEvent('add_to_cart', {
@@ -240,7 +248,7 @@ await LinkFortySDK.clearEventQueue(); // clear queue without sending
 ```typescript
 const installId = await LinkFortySDK.getInstallId();
 const installData = await LinkFortySDK.getInstallData();
-const isFirst = await LinkFortySDK.isFirstLaunch();
+const isFirst = await LinkFortySDK.isFirstLaunch(); // true until the install has been reported
 
 // Clear all stored data (e.g., on user logout)
 await LinkFortySDK.clearData();
@@ -400,16 +408,14 @@ npx uri-scheme open "https://go.yourdomain.com/abc123" --ios
 npx uri-scheme open "https://go.yourdomain.com/abc123" --android
 ```
 
-## Self-Hosted vs Cloud
-
-The only change is the `baseUrl`:
+## Hosted Service vs Self-Hosted
 
 ```typescript
-// Cloud (managed SaaS)
-await LinkFortySDK.initialize({ baseUrl: 'https://go.linkforty.com' });
+// Hosted service (linkforty.com)
+await LinkFortySDK.initialize({ baseUrl: 'https://api.linkforty.com', appToken: 'at_a1b2c3d4...' });
 
 // Self-hosted (@linkforty/core)
 await LinkFortySDK.initialize({ baseUrl: 'https://links.yourdomain.com' });
 ```
 
-All SDK methods work identically with both.
+`createLink()` needs the hosted service: a self-hosted `@linkforty/core` server has no `/api/sdk/v1/links`, and its `POST /api/links` requires an `originalUrl` the SDK doesn't send.

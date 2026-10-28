@@ -17,7 +17,8 @@ Expo SDK for [LinkForty](https://github.com/LinkForty/core) — the open-source 
 
 ## Requirements
 
-- Expo SDK 51 or later, React Native 0.74 or later, React 18 or later (the package's peer dependencies)
+- Expo SDK 51 or later (built and tested against Expo SDK 58), React Native 0.74 or later, React 18 or later
+- The Expo modules the SDK runs on, installed in your app: `expo-device`, `expo-application`, `expo-localization`, `expo-linking` and `@react-native-async-storage/async-storage` 1.23.1 or later 2.x (AsyncStorage 3 is not supported). They are peer dependencies, so your app's versions are the ones used
 - A [development build](https://docs.expo.dev/develop/development-builds/introduction/) or EAS build to test links: Expo Go can't claim your link domains, so Universal Links and App Links won't open your app there
 - Optional: `@react-navigation/native` 6 or later, only for automatic screen tracking
 
@@ -27,7 +28,7 @@ Expo SDK for [LinkForty](https://github.com/LinkForty/core) — the open-source 
 npx expo install @linkforty/mobile-sdk-expo expo-device expo-application expo-localization expo-linking @react-native-async-storage/async-storage
 ```
 
-List the Expo modules in the command, as above: `npx expo install` then adds the versions that match your app's Expo SDK. The package currently also pins the Expo SDK 52 versions of `expo-device`, `expo-application`, `expo-localization` and `expo-linking` (and `@react-native-async-storage/async-storage` 2.x) as its own dependencies, so on other Expo SDKs npm places those copies inside the package as well, and Expo autolinking reports them as duplicates. Installing only `@linkforty/mobile-sdk-expo` can leave the SDK 52 version as your app's own copy of a module.
+List the Expo modules in the command, as above: they are peer dependencies, and `npx expo install` adds the versions that match your app's Expo SDK. A plain `npm install` of the package alone installs the newest versions of missing peers, which may not match your Expo SDK; `npx expo install --check` reports any that don't.
 
 No config plugin is needed. After installing, rebuild your development build if it doesn't already include these modules.
 
@@ -123,7 +124,7 @@ export async function setUpLinkForty() {
 }
 ```
 
-Register both callbacks right after `initialize()` resolves: they can only be registered once the SDK is initialized, and a link that arrives while no `onDeepLink` callback is registered is not delivered later. The deferred deep link is kept, so `onDeferredDeepLink` registered after `initialize()` still receives it.
+Register both callbacks after `initialize()` resolves: they can only be registered once the SDK is initialized. Nothing is lost in between. The SDK handles the link that launched the app itself (from `Linking.getInitialURL()`), and a link handled while no `onDeepLink` callback is registered is held and delivered once to the first callback you register. The deferred deep link is kept too, so `onDeferredDeepLink` registered after `initialize()` still receives it.
 
 ## API Reference
 
@@ -134,7 +135,7 @@ await LinkForty.initialize(config);    // Returns InstallAttributionResponse
 LinkForty.isInitialized;               // boolean getter
 ```
 
-`initialize()` returns an `InstallAttributionResponse` on every launch. On the launch that reports the install it carries the server's answer; on later launches it is rebuilt from what was saved (`attributed` is true when install link data is saved, `confidenceScore` is 100 or 0, `matchedFactors` is empty). If the install report fails, it resolves as organic (`attributed: false`, empty `installId`) rather than rejecting, and the install is not reported again.
+`initialize()` returns an `InstallAttributionResponse` on every launch. On the launch that reports the install it carries the server's answer; on later launches it is rebuilt from what was saved (`attributed` is true when install link data is saved, `confidenceScore` is 100 or 0, `matchedFactors` is empty). If the install report fails, it resolves as organic (`attributed: false`, empty `installId`) rather than rejecting, and `onDeferredDeepLink` receives `null` on that launch. The install stays unreported, so the next launch reports it again; when that report succeeds, that launch delivers the deferred deep link.
 
 ### Deep Linking
 
@@ -144,9 +145,11 @@ LinkForty.onDeepLink(callback);         // Direct (multiple callbacks supported)
 LinkForty.handleDeepLink(url);          // Manual URL pass-through
 ```
 
+The SDK listens for incoming links itself (`expo-linking`), including the link that launched the app, and passes each one to `onDeepLink`. Use `handleDeepLink()` only for URLs that reach your app another way: passing it the launch URL or a URL from your own `Linking` listener delivers that link to your callbacks twice.
+
 A LinkForty link is resolved on the server for its `customParameters`, UTM parameters and metadata, falling back to a local parse if that fails; any other URL reaches `onDeepLink` with `data` set to `null`. A LinkForty link is an `http(s)` URL on your `baseUrl` host or, with `appToken` set, on one of your workspace's link hosts: its `toapp.me` label and verified custom domains. The SDK learns those hosts from the server at launch (`GET /api/sdk/v1/link-domains`) and saves them for the next one; on a server without that endpoint, such as `@linkforty/core` today, only the `baseUrl` host counts. With `appToken` set, a lookup answers only with your own workspace's links.
 
-`onDeferredDeepLink` is called once, on the launch that reports the install: with the link's data, or `null` for an organic install. Later launches don't call it; `getInstallData()` returns the install's link data at any time.
+`onDeferredDeepLink` is called on the launch that reports the install: with the link's data, or `null` for an organic install. Later launches don't call it; `getInstallData()` returns the install's link data at any time. A launch whose install report failed also calls it, with `null`, and the next launch reports the install again (see [Initialization](#initialization)).
 
 On a matched install, the deferred deep link also carries the match's certainty when the server sends it: `confidenceScore` (0-100), `matchedFactors`, `attributionMethod` (`'install_referrer'` or `'fingerprint'`) and `competingLinks`. `competingLinks` counts the other links that had a click from the install's network that also reached the confidence threshold. Above 0, another device's tap may be what led to this install, so an app acting on a sensitive link (sign-in, gift) can treat the match as unverified, for example by asking the user to confirm. The `InstallAttributionResponse` returned by `initialize()` carries `attributionMethod` (`'install_referrer'`, `'fingerprint'` or `'none'`) and `competingLinks` too, on the launch that reports the install. Direct opens never carry these fields, and older servers omit them.
 
@@ -162,7 +165,7 @@ await LinkForty.clearEventQueue();      // Clear without sending
 LinkForty.queuedEventCount;            // Queue size getter
 ```
 
-`trackEvent()` and `trackRevenue()` reject when the send fails (after the event has been queued; see [Offline Resilience](#offline-resilience)), so catch the error where you call them. Both need the install ID from the install report: if that report failed on the app's first launch, they reject with `NOT_INITIALIZED` and the event is not queued.
+`trackEvent()` and `trackRevenue()` reject when the send fails (after the event has been queued; see [Offline Resilience](#offline-resilience)), so catch the error where you call them. Both need the install ID from the install report: on a launch whose install report failed, they reject with `NOT_INITIALIZED` and the event is not queued. The install is reported again on the next launch.
 
 Every tracked event (including auto screen views) is automatically attributed to the deep link that drove the visit using a last-click model — so re-engagement campaigns are credited to the link the user tapped, not their original install link.
 
@@ -171,7 +174,7 @@ Every tracked event (including auto screen views) is automatically attributed to
 Auto-emit a `screen_view` event on each navigation — no manual per-screen calls — so your dashboard can show an **attributed screen-flow funnel** per campaign. Opt-in, via [React Navigation](https://reactnavigation.org/) (an **optional** peer dependency):
 
 ```typescript
-import LinkForty, { type NavigationContainerRefLike } from '@linkforty/mobile-sdk-expo';
+import LinkForty from '@linkforty/mobile-sdk-expo';
 import { createNavigationContainerRef } from '@react-navigation/native';
 
 export const navigationRef = createNavigationContainerRef();
@@ -180,13 +183,11 @@ await LinkForty.initialize({
   baseUrl: 'https://api.linkforty.com',
   appToken: 'at_a1b2c3d4...',
   autoTrackNavigation: true, // screen names only (privacy-safe default)
-  // Also pass this to <NavigationContainer ref={navigationRef}>. The cast is needed
-  // under strict TypeScript: React Navigation types route params as `object`.
-  navigationRef: navigationRef as NavigationContainerRefLike,
+  navigationRef, // also pass this to <NavigationContainer ref={navigationRef}>
 });
 ```
 
-With Expo Router, there is no `NavigationContainer` to pass a ref to: use `useNavigationContainerRef()` from `expo-router` in your root layout and pass that ref (with the same cast).
+With Expo Router, there is no `NavigationContainer` to pass a ref to: use `useNavigationContainerRef()` from `expo-router` in your root layout and pass that ref. Both refs assign to `navigationRef` without a cast under strict TypeScript.
 
 **Route params are OFF by default** (they can contain PII). To capture specific non-PII params, opt in with an explicit allow-list:
 
@@ -224,7 +225,7 @@ LinkForty.getSessionId();                // Current session id; rotates on cold 
 ```typescript
 await LinkForty.getInstallId();    // Cached install UUID
 await LinkForty.getInstallData();  // Cached DeepLinkData
-await LinkForty.isFirstLaunch();   // First launch status
+await LinkForty.isFirstLaunch();   // true until the install has been reported
 ```
 
 ### Data Management
@@ -275,7 +276,9 @@ All SDK errors are instances of `LinkFortyError` with a `.code` property (and `.
 
 ## Offline Resilience
 
-An event that fails to send (offline, or any error after retries) is queued in AsyncStorage and survives app restarts. The queue holds 100 events; when it is full, new failed events are dropped. Queued events are sent after the next event that sends successfully, or when you call `flushEvents()`; the SDK doesn't send them on launch or when connectivity returns. Events carry no unique ID, so an event whose send reached the server but whose response was lost is sent again and can be counted twice.
+An event that fails to send (offline, or any error after retries) is queued in AsyncStorage and survives app restarts. The queue holds 100 events; when it is full, new failed events are dropped. Queued events are sent, in order, when `initialize()` has reported the install, each time the app returns to the foreground, after the next event that sends successfully, and when you call `flushEvents()`. A send that fails leaves the rest of the queue for the next of these. The SDK doesn't watch connectivity.
+
+Each event carries a `clientEventId`, kept with it in the queue, so every send of an event has the same ID. A server on `@linkforty/core` 1.36.0 or later, and the hosted service, store an event they have already received once, so an event whose send reached the server but whose response was lost isn't counted twice. Older servers ignore the field.
 
 ## Configuration
 
@@ -291,7 +294,7 @@ An event that fails to send (offline, or any error after retries) is queued in A
 
 ## Privacy
 
-The SDK doesn't collect IDFA or GAID and never shows the App Tracking Transparency prompt. To match installs it sends: time zone, language, screen width and height, platform and OS version, app version, and a user agent built from your app's name and version; on Android, the Google Play install referrer. The server also sees the request's IP address. Link lookups send the time zone, language, screen size, platform and OS version. Events send the install ID, the event name and properties you pass, a timestamp, the session ID and the attributed link. Every request names the SDK and its version. Keep personal data out of event properties and captured route params.
+The SDK doesn't collect IDFA or GAID and never shows the App Tracking Transparency prompt. To match installs it sends: time zone, language, screen width and height, platform and OS version, app version, and a user agent built from your app's name and version; on Android, the Google Play install referrer. The server also sees the request's IP address. Link lookups send the time zone, language, screen size, platform and OS version. Events send the install ID, a random event ID, the event name and properties you pass, a timestamp, the session ID and the attributed link. Every request names the SDK and its version. Keep personal data out of event properties and captured route params.
 
 ## Other SDKs
 
