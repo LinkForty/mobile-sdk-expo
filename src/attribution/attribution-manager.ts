@@ -30,9 +30,7 @@ export class AttributionManager {
     deviceId?: string,
     appToken?: string,
   ): Promise<InstallAttributionResponse> {
-    const isFirst = await this.storage.isFirstLaunch();
-
-    if (!isFirst) {
+    if (!(await this.needsInstallReport())) {
       return this.buildCachedResponse();
     }
 
@@ -75,6 +73,10 @@ export class AttributionManager {
 
     logger.log('Install response:', response);
 
+    // A 2xx answer: never sent again for a missing install id, so a server
+    // that answers without one can't make every launch report.
+    await this.storage.setInstallReported();
+
     // Cache install ID
     if (response.installId) {
       await this.storage.saveInstallId(response.installId);
@@ -100,6 +102,20 @@ export class AttributionManager {
 
     await this.storage.setHasLaunched();
     return response;
+  }
+
+  /**
+   * Whether this launch reports the install: on the first launch, until a
+   * report succeeds; and once on a device an earlier SDK version marked as
+   * launched although its report failed (no install id saved, no successful
+   * report recorded). A device with an install id never reports again.
+   */
+  private async needsInstallReport(): Promise<boolean> {
+    if (await this.storage.isFirstLaunch()) return true;
+    if (await this.storage.getInstallId()) return false;
+    if (await this.storage.isInstallReported()) return false;
+    logger.log('Install was never reported (no install id saved): reporting it now');
+    return true;
   }
 
   async getInstallId(): Promise<string | null> {

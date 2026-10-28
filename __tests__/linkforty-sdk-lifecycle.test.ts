@@ -181,6 +181,104 @@ describe('LinkFortySDK lifecycle', () => {
     });
   });
 
+  describe('a device whose install report failed on an earlier SDK version', () => {
+    /** The state 1.9.0 and earlier left after a failed first-launch report. */
+    async function markStuck() {
+      await AsyncStorage.setItem(STORAGE_KEYS.FIRST_LAUNCH, 'true');
+    }
+
+    it('reports the install once, after which events are accepted', async () => {
+      await markStuck();
+      const fetchMock = routeFetch({
+        '/api/sdk/v1/install': () => organicInstall('install-recovered'),
+        '/api/sdk/v1/event': () => ({ ok: true, body: {} }),
+      });
+      globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+      const response = await sdk.initialize(config);
+      const deferred = vi.fn();
+      sdk.onDeferredDeepLink(deferred);
+
+      expect(callsTo(fetchMock, '/api/sdk/v1/install')).toHaveLength(1);
+      expect(response.installId).toBe('install-recovered');
+      expect(await sdk.getInstallId()).toBe('install-recovered');
+      // Not a new install: no deferred deep link is delivered.
+      expect(deferred).not.toHaveBeenCalled();
+      await expect(sdk.trackEvent('after_recovery')).resolves.toBeUndefined();
+      expect(eventBodies(fetchMock)[0].installId).toBe('install-recovered');
+
+      relaunch();
+      await sdk.initialize(config);
+      expect(callsTo(fetchMock, '/api/sdk/v1/install')).toHaveLength(1);
+    });
+
+    it('tries again on the next launch when the recovery report fails', async () => {
+      await markStuck();
+      let installReply: () => Reply = failedInstall;
+      const fetchMock = routeFetch({ '/api/sdk/v1/install': () => installReply() });
+      globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+      await sdk.initialize(config);
+      expect(await sdk.getInstallId()).toBeNull();
+
+      relaunch();
+      installReply = () => organicInstall('install-second-try');
+      await sdk.initialize(config);
+
+      expect(callsTo(fetchMock, '/api/sdk/v1/install')).toHaveLength(2);
+      expect(await sdk.getInstallId()).toBe('install-second-try');
+    });
+
+    it('does not report again on every launch when a success carries no install id', async () => {
+      await markStuck();
+      const fetchMock = routeFetch({
+        '/api/sdk/v1/install': () => ({
+          ok: true,
+          body: { attributed: false, confidenceScore: 0, matchedFactors: [], deepLinkData: null },
+        }),
+      });
+      globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+      await sdk.initialize(config);
+      relaunch();
+      await sdk.initialize(config);
+      relaunch();
+      await sdk.initialize(config);
+
+      expect(callsTo(fetchMock, '/api/sdk/v1/install')).toHaveLength(1);
+    });
+
+    it('does not report again after a first-launch success that carried no install id', async () => {
+      const fetchMock = routeFetch({
+        '/api/sdk/v1/install': () => ({
+          ok: true,
+          body: { attributed: false, confidenceScore: 0, matchedFactors: [], deepLinkData: null },
+        }),
+      });
+      globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+      await sdk.initialize(config);
+      relaunch();
+      await sdk.initialize(config);
+
+      expect(callsTo(fetchMock, '/api/sdk/v1/install')).toHaveLength(1);
+    });
+
+    it('never reports again on a device that has an install id', async () => {
+      await AsyncStorage.setItem(STORAGE_KEYS.FIRST_LAUNCH, 'true');
+      await AsyncStorage.setItem(STORAGE_KEYS.INSTALL_ID, 'install-healthy');
+      const fetchMock = routeFetch({ '/api/sdk/v1/install': () => organicInstall('other') });
+      globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+      const response = await sdk.initialize(config);
+      relaunch();
+      await sdk.initialize(config);
+
+      expect(callsTo(fetchMock, '/api/sdk/v1/install')).toHaveLength(0);
+      expect(response.installId).toBe('install-healthy');
+    });
+  });
+
   describe('the offline event queue', () => {
     async function queueOneEvent(fetchMock: ReturnType<typeof vi.fn>, eventReply: { current: () => Reply }) {
       globalThis.fetch = fetchMock as unknown as typeof fetch;

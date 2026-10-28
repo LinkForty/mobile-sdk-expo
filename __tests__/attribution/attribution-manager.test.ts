@@ -14,6 +14,8 @@ function createMockStorage(): StorageManagerProtocol {
     getInstallData: vi.fn(async () => store['installData'] ? JSON.parse(store['installData']) : null),
     isFirstLaunch: vi.fn(async () => !store['hasLaunched']),
     setHasLaunched: vi.fn(async () => { store['hasLaunched'] = 'true'; }),
+    isInstallReported: vi.fn(async () => store['installReported'] === 'true'),
+    setInstallReported: vi.fn(async () => { store['installReported'] = 'true'; }),
     clearAll: vi.fn(async () => {
       for (const key of Object.keys(store)) delete store[key];
     }),
@@ -262,6 +264,23 @@ describe('AttributionManager', () => {
     expect(result.deepLinkData?.competingLinks).toBe(1);
   });
 
+  it('reports once on a launched device with no install id and no recorded report', async () => {
+    await storage.setHasLaunched();
+    const network = createMockNetwork({
+      installId: 'install-recovered',
+      attributed: false,
+      confidenceScore: 0,
+      matchedFactors: [],
+      deepLinkData: null,
+    });
+    const manager = new AttributionManager(network, storage, fingerprint);
+
+    expect((await manager.reportInstall(168)).installId).toBe('install-recovered');
+    expect(storage.setInstallReported).toHaveBeenCalled();
+    await manager.reportInstall(168);
+    expect(network.request).toHaveBeenCalledTimes(1);
+  });
+
   it('getInstallId returns cached value', async () => {
     await storage.saveInstallId('my-id');
     const manager = new AttributionManager(
@@ -313,6 +332,7 @@ describe('AttributionManager', () => {
     });
 
     it('does not read the referrer once the install is reported', async () => {
+      await storage.saveInstallId('install-1');
       await storage.setHasLaunched();
       const read = vi.fn(async () => 'lf_click=abc');
       const network = createMockNetwork(organic);
