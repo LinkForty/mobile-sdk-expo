@@ -6,6 +6,7 @@ export enum LinkFortyErrorCode {
   INVALID_RESPONSE = 'INVALID_RESPONSE',
   DECODING_ERROR = 'DECODING_ERROR',
   INVALID_EVENT_DATA = 'INVALID_EVENT_DATA',
+  /** @deprecated Never thrown: an unparseable link reaches `onDeepLink` with `null` data. Kept for compatibility. */
   INVALID_DEEP_LINK_URL = 'INVALID_DEEP_LINK_URL',
   MISSING_API_KEY = 'MISSING_API_KEY',
 }
@@ -78,6 +79,7 @@ export class LinkFortyError extends Error {
     );
   }
 
+  /** @deprecated The SDK never throws this error. Kept for compatibility. */
   static invalidDeepLinkUrl(detail: string): LinkFortyError {
     return new LinkFortyError(
       LinkFortyErrorCode.INVALID_DEEP_LINK_URL,
