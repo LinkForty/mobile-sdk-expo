@@ -132,7 +132,7 @@ import LinkFortySDK from '@linkforty/mobile-sdk-expo';
 
 ### initialize(config: LinkFortyConfig): Promise\<InstallAttributionResponse\>
 
-Initialize the SDK, report the install, and return attribution data. Must be called before any other method. HTTPS is required for `baseUrl` (except localhost for development). If the install report fails, it resolves as organic (`attributed: false`, empty `installId`) and the next launch reports the install again. A device whose first-launch report failed on SDK 1.9.0 or earlier (marked launched, no install ID saved) reports its install once after upgrading; it appears as an install dated at the upgrade, usually organic, and `onDeferredDeepLink` is not called for it.
+Initialize the SDK, report the install, and return attribution data. Must be called before any other method. HTTPS is required for `baseUrl` (except localhost for development). If the install report fails, it resolves as organic (`attributed: false`, empty `installId`) and the next launch reports the install again. A device whose first-launch report failed on SDK 1.9.0 or earlier (marked launched, no install ID saved) reports its install once after upgrading; it appears as an install dated at the upgrade, usually organic. That report only restores the install ID: `onDeferredDeepLink` is not called, `initialize()` resolves with `attributed: false`, and a matched link is neither saved as install data nor credited for later events.
 
 ```typescript
 const attribution = await LinkFortySDK.initialize({

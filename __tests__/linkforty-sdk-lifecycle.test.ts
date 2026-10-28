@@ -212,6 +212,40 @@ describe('LinkFortySDK lifecycle', () => {
       expect(callsTo(fetchMock, '/api/sdk/v1/install')).toHaveLength(1);
     });
 
+    it('restores only the install id: an attributed answer is not saved as install data or credited', async () => {
+      await markStuck();
+      const fetchMock = routeFetch({
+        '/api/sdk/v1/install': () => ({
+          ok: true,
+          body: {
+            installId: 'install-recovered',
+            attributed: true,
+            confidenceScore: 80,
+            matchedFactors: ['ip', 'user_agent'],
+            deepLinkData: { shortCode: 'fp-match', linkId: 'link-fp' },
+          },
+        }),
+        '/api/sdk/v1/event': () => ({ ok: true, body: {} }),
+      });
+      globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+      const response = await sdk.initialize(config);
+      await sdk.trackEvent('after_recovery');
+
+      expect(response.installId).toBe('install-recovered');
+      expect(response.attributed).toBe(false);
+      expect(response.deepLinkData).toBeNull();
+      expect(await sdk.getInstallId()).toBe('install-recovered');
+      expect(await sdk.getInstallData()).toBeNull();
+      expect(await AsyncStorage.getItem(STORAGE_KEYS.ATTRIBUTION)).toBeNull();
+      expect(eventBodies(fetchMock)[0].attributedLinkId).toBeUndefined();
+
+      relaunch();
+      const later = await sdk.initialize(config);
+      expect(later.attributed).toBe(false);
+      expect(await sdk.getInstallData()).toBeNull();
+    });
+
     it('tries again on the next launch when the recovery report fails', async () => {
       await markStuck();
       let installReply: () => Reply = failedInstall;

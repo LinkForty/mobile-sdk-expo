@@ -30,7 +30,8 @@ export class AttributionManager {
     deviceId?: string,
     appToken?: string,
   ): Promise<InstallAttributionResponse> {
-    if (!(await this.needsInstallReport())) {
+    const report = await this.installReportKind();
+    if (report === null) {
       return this.buildCachedResponse();
     }
 
@@ -82,6 +83,19 @@ export class AttributionManager {
       await this.storage.saveInstallId(response.installId);
     }
 
+    if (report === 'recovery') {
+      // A match made now, at upgrade time, is not the click that led to the
+      // install: keep only the install id, and answer as later launches do.
+      logger.log('Install id restored:', response.installId);
+      return {
+        installId: response.installId ?? '',
+        attributed: false,
+        confidenceScore: 0,
+        matchedFactors: [],
+        deepLinkData: null,
+      };
+    }
+
     // Cache deep link data if attributed
     if (response.attributed && response.deepLinkData) {
       // Normalize deepLinkParameters -> customParameters
@@ -105,17 +119,18 @@ export class AttributionManager {
   }
 
   /**
-   * Whether this launch reports the install: on the first launch, until a
-   * report succeeds; and once on a device an earlier SDK version marked as
-   * launched although its report failed (no install id saved, no successful
-   * report recorded). A device with an install id never reports again.
+   * Whether this launch reports the install, and why: `'first'` on the first
+   * launch, until a report succeeds; `'recovery'` once on a device an earlier
+   * SDK version marked as launched although its report failed (no install id
+   * saved, no successful report recorded); null otherwise. A device with an
+   * install id never reports again.
    */
-  private async needsInstallReport(): Promise<boolean> {
-    if (await this.storage.isFirstLaunch()) return true;
-    if (await this.storage.getInstallId()) return false;
-    if (await this.storage.isInstallReported()) return false;
+  private async installReportKind(): Promise<'first' | 'recovery' | null> {
+    if (await this.storage.isFirstLaunch()) return 'first';
+    if (await this.storage.getInstallId()) return null;
+    if (await this.storage.isInstallReported()) return null;
     logger.log('Install was never reported (no install id saved): reporting it now');
-    return true;
+    return 'recovery';
   }
 
   async getInstallId(): Promise<string | null> {
