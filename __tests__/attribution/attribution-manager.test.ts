@@ -101,7 +101,7 @@ describe('AttributionManager', () => {
     expect(result.deepLinkData?.shortCode).toBe('cached');
   });
 
-  it('treats as organic when network fails', async () => {
+  it('treats as organic when network fails, and reports again on the next launch', async () => {
     const network: NetworkManagerProtocol = {
       request: vi.fn().mockRejectedValue(new Error('Network down')),
     };
@@ -110,8 +110,25 @@ describe('AttributionManager', () => {
     const result = await manager.reportInstall(168);
 
     expect(result.attributed).toBe(false);
+    expect(result.installId).toBe('');
     expect(result.deepLinkData).toBeNull();
-    expect(storage.setHasLaunched).toHaveBeenCalled();
+    expect(storage.setHasLaunched).not.toHaveBeenCalled();
+    expect(await manager.isFirstLaunch()).toBe(true);
+
+    // Next launch: the network is back and the install is reported.
+    vi.mocked(network.request).mockResolvedValue({
+      installId: 'install-after-retry',
+      attributed: false,
+      confidenceScore: 0,
+      matchedFactors: [],
+      deepLinkData: null,
+    });
+    const retried = await manager.reportInstall(168);
+
+    expect(network.request).toHaveBeenCalledTimes(2);
+    expect(retried.installId).toBe('install-after-retry');
+    expect(await manager.getInstallId()).toBe('install-after-retry');
+    expect(await manager.isFirstLaunch()).toBe(false);
   });
 
   it('returns organic response when not attributed', async () => {

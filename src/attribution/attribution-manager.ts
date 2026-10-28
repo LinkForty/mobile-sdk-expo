@@ -48,9 +48,9 @@ export class AttributionManager {
         '/api/sdk/v1/install',
         {
           method: 'POST',
-          // appToken (when provided) lets Cloud scope organic installs
-          // to the right workspace. Omitted from the body when undefined.
-          // sdkName/sdkVersion (SIT-235) identify the SDK for health diagnostics.
+          // appToken (when provided) scopes the install, organic ones
+          // included, to the app's workspace. Omitted when undefined.
+          // sdkName/sdkVersion identify the SDK and its version.
           body: JSON.stringify({
             ...fp,
             ...(appToken ? { appToken } : {}),
@@ -62,8 +62,8 @@ export class AttributionManager {
       );
     } catch (e) {
       logger.error('Failed to report install:', e);
-      // Treat as organic on failure
-      await this.storage.setHasLaunched();
+      // Answer as organic for this launch, but leave the install unreported so
+      // the next launch reports it again.
       return {
         installId: '',
         attributed: false,
