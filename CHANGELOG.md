@@ -1,3 +1,7 @@
+## <small>1.9.1 (2026-10-28)</small>
+
+* docs: correct README against the published 1.9.0 API (#12) ([2a49b89](https://github.com/LinkForty/mobile-sdk-expo/commit/2a49b89)), closes [#12](https://github.com/LinkForty/mobile-sdk-expo/issues/12)
+
 ## 1.9.0 (2026-10-22)
 
 * feat(attribution): send the Google Play install referrer with the install (#11) ([4e7980b](https://github.com/LinkForty/mobile-sdk-expo/commit/4e7980b)), closes [#11](https://github.com/LinkForty/mobile-sdk-expo/issues/11)
