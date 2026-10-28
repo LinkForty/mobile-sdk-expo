@@ -24,15 +24,15 @@
 
 ## 1.6.0 (2026-06-10)
 
-* feat(sdk): report SDK name + version (SIT-235 · Expo) (#5) ([554b45d](https://github.com/LinkForty/mobile-sdk-expo/commit/554b45d)), closes [#5](https://github.com/LinkForty/mobile-sdk-expo/issues/5)
+* feat(sdk): report SDK name + version (#5) ([554b45d](https://github.com/LinkForty/mobile-sdk-expo/commit/554b45d)), closes [#5](https://github.com/LinkForty/mobile-sdk-expo/issues/5)
 
 ## 1.5.0 (2026-06-10)
 
-* feat: port last-click attribution + autoTrackNavigation to the Expo SDK (SIT-237) (#4) ([418c160](https://github.com/LinkForty/mobile-sdk-expo/commit/418c160)), closes [#4](https://github.com/LinkForty/mobile-sdk-expo/issues/4)
+* feat: port last-click attribution + autoTrackNavigation to the Expo SDK (#4) ([418c160](https://github.com/LinkForty/mobile-sdk-expo/commit/418c160)), closes [#4](https://github.com/LinkForty/mobile-sdk-expo/issues/4)
 
 ## 1.4.0 (2026-05-04)
 
-* feat: add appToken config option for Cloud organic-install attribution (#1) ([8261ca4](https://github.com/LinkForty/mobile-sdk-expo/commit/8261ca4)), closes [#1](https://github.com/LinkForty/mobile-sdk-expo/issues/1) [LinkForty/cloud#76](https://github.com/LinkForty/cloud/issues/76)
+* feat: add appToken config option for organic-install attribution (#1) ([8261ca4](https://github.com/LinkForty/mobile-sdk-expo/commit/8261ca4)), closes [#1](https://github.com/LinkForty/mobile-sdk-expo/issues/1)
 * ci: drop flaky 'npm install -g npm@latest' self-upgrade step (#2) ([f1cebdd](https://github.com/LinkForty/mobile-sdk-expo/commit/f1cebdd)), closes [#2](https://github.com/LinkForty/mobile-sdk-expo/issues/2) [#1](https://github.com/LinkForty/mobile-sdk-expo/issues/1)
 * update packages ([334885e](https://github.com/LinkForty/mobile-sdk-expo/commit/334885e))
 

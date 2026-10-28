@@ -70,7 +70,7 @@ export class NetworkManager implements NetworkManagerProtocol {
 
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
-      // SDK identity header (SIT-235) — name/version on every SDK request.
+      // SDK identity header: name/version on every SDK request.
       'X-LinkForty-SDK': `${SDK_NAME}/${SDK_VERSION}`,
       ...(options.headers as Record<string, string> | undefined),
     };
