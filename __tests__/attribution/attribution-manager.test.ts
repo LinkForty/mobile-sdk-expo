@@ -14,6 +14,8 @@ function createMockStorage(): StorageManagerProtocol {
     getInstallData: vi.fn(async () => store['installData'] ? JSON.parse(store['installData']) : null),
     isFirstLaunch: vi.fn(async () => !store['hasLaunched']),
     setHasLaunched: vi.fn(async () => { store['hasLaunched'] = 'true'; }),
+    isInstallReported: vi.fn(async () => store['installReported'] === 'true'),
+    setInstallReported: vi.fn(async () => { store['installReported'] = 'true'; }),
     clearAll: vi.fn(async () => {
       for (const key of Object.keys(store)) delete store[key];
     }),
@@ -101,7 +103,7 @@ describe('AttributionManager', () => {
     expect(result.deepLinkData?.shortCode).toBe('cached');
   });
 
-  it('treats as organic when network fails', async () => {
+  it('treats as organic when network fails, and reports again on the next launch', async () => {
     const network: NetworkManagerProtocol = {
       request: vi.fn().mockRejectedValue(new Error('Network down')),
     };
@@ -110,8 +112,25 @@ describe('AttributionManager', () => {
     const result = await manager.reportInstall(168);
 
     expect(result.attributed).toBe(false);
+    expect(result.installId).toBe('');
     expect(result.deepLinkData).toBeNull();
-    expect(storage.setHasLaunched).toHaveBeenCalled();
+    expect(storage.setHasLaunched).not.toHaveBeenCalled();
+    expect(await manager.isFirstLaunch()).toBe(true);
+
+    // Next launch: the network is back and the install is reported.
+    vi.mocked(network.request).mockResolvedValue({
+      installId: 'install-after-retry',
+      attributed: false,
+      confidenceScore: 0,
+      matchedFactors: [],
+      deepLinkData: null,
+    });
+    const retried = await manager.reportInstall(168);
+
+    expect(network.request).toHaveBeenCalledTimes(2);
+    expect(retried.installId).toBe('install-after-retry');
+    expect(await manager.getInstallId()).toBe('install-after-retry');
+    expect(await manager.isFirstLaunch()).toBe(false);
   });
 
   it('returns organic response when not attributed', async () => {
@@ -245,6 +264,23 @@ describe('AttributionManager', () => {
     expect(result.deepLinkData?.competingLinks).toBe(1);
   });
 
+  it('reports once on a launched device with no install id and no recorded report', async () => {
+    await storage.setHasLaunched();
+    const network = createMockNetwork({
+      installId: 'install-recovered',
+      attributed: false,
+      confidenceScore: 0,
+      matchedFactors: [],
+      deepLinkData: null,
+    });
+    const manager = new AttributionManager(network, storage, fingerprint);
+
+    expect((await manager.reportInstall(168)).installId).toBe('install-recovered');
+    expect(storage.setInstallReported).toHaveBeenCalled();
+    await manager.reportInstall(168);
+    expect(network.request).toHaveBeenCalledTimes(1);
+  });
+
   it('getInstallId returns cached value', async () => {
     await storage.saveInstallId('my-id');
     const manager = new AttributionManager(
@@ -296,6 +332,7 @@ describe('AttributionManager', () => {
     });
 
     it('does not read the referrer once the install is reported', async () => {
+      await storage.saveInstallId('install-1');
       await storage.setHasLaunched();
       const read = vi.fn(async () => 'lf_click=abc');
       const network = createMockNetwork(organic);

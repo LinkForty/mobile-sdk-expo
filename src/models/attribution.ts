@@ -1,5 +1,5 @@
 /**
- * Last-click attribution models (SIT-237).
+ * Last-click attribution models.
  *
  * In-app activity (screen views + custom events) is attributed to the deep link
  * that drove it. Every deep-link open pins an active context; the newest open

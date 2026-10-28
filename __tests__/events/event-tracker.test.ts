@@ -14,6 +14,8 @@ function createMockStorage(installId: string | null = 'install-1'): StorageManag
     getInstallData: vi.fn(async () => null),
     isFirstLaunch: vi.fn(async () => false),
     setHasLaunched: vi.fn(async () => {}),
+    isInstallReported: vi.fn(async () => true),
+    setInstallReported: vi.fn(async () => {}),
     clearAll: vi.fn(async () => {}),
   };
 }

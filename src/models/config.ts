@@ -3,14 +3,14 @@ import { LinkFortyError } from '../errors/linkforty-error';
 export interface LinkFortyConfig {
   /** Base URL of your LinkForty instance (e.g., 'https://go.yourdomain.com') */
   baseUrl: string;
-  /** Optional API key for Cloud authentication */
+  /** Optional API key, only needed for `createLink()` */
   apiKey?: string;
   /**
-   * Public workspace token (LinkForty Cloud only). Recommended — required
-   * for organic installs (App Store discovery, social mentions, etc.) to
-   * be attributed to your workspace. Find it in the dashboard under
-   * Workspace Settings → App Token. Safe to ship in your app bundle.
-   * Format: `at_<32 hex chars>`.
+   * Public workspace token. Required on the hosted service: scopes install
+   * matching and link lookups to your workspace, so organic installs (App
+   * Store discovery, social mentions, etc.) are attributed to it. Find it in
+   * the dashboard under Workspace Settings → App Token. Safe to ship in your
+   * app bundle. Format: `at_<32 hex chars>`.
    */
   appToken?: string;
   /** Enable debug logging (default: false) */
@@ -54,10 +54,15 @@ export interface AutoTrackNavigationOptions {
 /**
  * The slice of a React Navigation route the SDK reads. Structural — matches
  * `getCurrentRoute()` without importing `@react-navigation/native`.
+ *
+ * `params` is typed as `object`, as React Navigation types it, so the refs from
+ * `createNavigationContainerRef()` and Expo Router's
+ * `useNavigationContainerRef()` assign without a cast. The SDK reads only
+ * allow-listed keys with primitive values from it.
  */
 export interface NavigationRouteLike {
   name: string;
-  params?: Record<string, unknown>;
+  params?: object;
 }
 
 /** The slice of a React Navigation container ref the SDK uses. Structural. */

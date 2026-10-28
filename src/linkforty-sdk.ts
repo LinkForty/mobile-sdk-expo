@@ -1,3 +1,4 @@
+import { AppState } from 'react-native';
 import type { LinkFortyConfig } from './models/config';
 import type { InstallAttributionResponse } from './models/install-response';
 import type { DeepLinkData } from './models/deep-link-data';
@@ -27,6 +28,7 @@ export class LinkFortySDK {
   private deepLinkHandler: DeepLinkHandler | null = null;
   private eventTracker: EventTracker | null = null;
   private navigationTracker: NavigationTracker | null = null;
+  private appStateSubscription: { remove(): void } | null = null;
   private externalUserId: string | null = null;
   private _isInitialized = false;
 
@@ -95,8 +97,9 @@ export class LinkFortySDK {
 
     // Record every direct (re-engagement) deep-link open into the attribution
     // context so subsequent events credit the link the user just tapped — not
-    // their original install link. Registered before any developer callbacks.
-    deepLinkHandler.onDeepLink((_url, data) => {
+    // their original install link. An internal listener, so a link that opens
+    // before the app registers onDeepLink is still held for its first callback.
+    deepLinkHandler.onDeepLinkOpened((_url, data) => {
       if (data?.linkId) {
         void attributionContext.recordDeepLinkOpen(data.linkId);
       }
@@ -133,6 +136,11 @@ export class LinkFortySDK {
 
     // Start listening for direct deep links
     deepLinkHandler.startListening();
+
+    // Events queued on an earlier launch go out now that the install is known,
+    // and again each time the app returns to the foreground.
+    this.flushQueueInBackground();
+    this.observeForeground();
 
     // Optional auto screen-view tracking. Screen views flow through trackEvent,
     // so they inherit the attribution stamp. Guarded: a missing/invalid
@@ -305,6 +313,8 @@ export class LinkFortySDK {
   }
 
   reset(): void {
+    this.appStateSubscription?.remove();
+    this.appStateSubscription = null;
     this.deepLinkHandler?.cleanup();
     this.navigationTracker?.stop();
     this.config = null;
@@ -327,6 +337,31 @@ export class LinkFortySDK {
    */
   getSessionId(): string | null {
     return this.attributionContext?.getSessionId() ?? null;
+  }
+
+  // -- Offline queue --
+
+  /** Sends queued events without blocking the caller; a failure stays queued. */
+  private flushQueueInBackground(): void {
+    this.eventTracker?.flushQueue().catch((e) => {
+      logger.warn('Failed to flush the event queue:', e);
+    });
+  }
+
+  /** Flushes the event queue each time the app comes back to the foreground. */
+  private observeForeground(): void {
+    if (this.appStateSubscription) return;
+    try {
+      let previous: string | null | undefined = AppState.currentState;
+      this.appStateSubscription = AppState.addEventListener('change', (state) => {
+        if (state === 'active' && previous !== 'active') {
+          this.flushQueueInBackground();
+        }
+        previous = state;
+      });
+    } catch (e) {
+      logger.warn('Could not observe app state; queued events flush on the next send:', e);
+    }
   }
 
   // -- Guards --

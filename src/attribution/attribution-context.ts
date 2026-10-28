@@ -1,5 +1,5 @@
 /**
- * AttributionContext — last-click attribution + session tracking (SIT-237).
+ * AttributionContext — last-click attribution + session tracking.
  *
  * Mirrors the React Native SDK. Every deep-link open (deferred install OR direct
  * re-engagement) pins an active attribution context to THAT link; the newest
@@ -16,18 +16,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { STORAGE_KEYS } from '../storage/storage-keys';
 import type { ActiveAttribution, AttributionStamp } from '../models/attribution';
 import { logger } from '../logger';
-
-/**
- * RFC4122-v4-style id for session grouping. Not a security token — `Math.random`
- * is sufficient and avoids a native crypto dependency.
- */
-function generateSessionId(): string {
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
-    const r = (Math.random() * 16) | 0;
-    const v = c === 'x' ? r : (r & 0x3) | 0x8;
-    return v.toString(16);
-  });
-}
+import { randomUuid } from '../random-uuid';
 
 export class AttributionContext {
   private active: ActiveAttribution | null = null;
@@ -36,7 +25,7 @@ export class AttributionContext {
 
   constructor() {
     // Construction == cold start == a new session.
-    this.sessionId = generateSessionId();
+    this.sessionId = randomUuid();
   }
 
   /** Restore the persisted active context. Idempotent; never throws. */
@@ -65,7 +54,7 @@ export class AttributionContext {
       clickId: clickId ?? undefined,
       openedAt: new Date().toISOString(),
     };
-    this.sessionId = generateSessionId();
+    this.sessionId = randomUuid();
 
     try {
       await AsyncStorage.setItem(STORAGE_KEYS.ATTRIBUTION, JSON.stringify(this.active));
@@ -96,7 +85,7 @@ export class AttributionContext {
   /** Clear the persisted context and start a fresh session. */
   async clear(): Promise<void> {
     this.active = null;
-    this.sessionId = generateSessionId();
+    this.sessionId = randomUuid();
     try {
       await AsyncStorage.removeItem(STORAGE_KEYS.ATTRIBUTION);
     } catch (e) {

@@ -17,6 +17,12 @@ export class DeepLinkHandler {
 
   private deferredCallbacks: DeferredDeepLinkCallback[] = [];
   private deepLinkCallbacks: DeepLinkCallback[] = [];
+  private openListeners: DeepLinkCallback[] = [];
+  /**
+   * A direct deep link handled while no `onDeepLink` callback was registered,
+   * typically the link that launched the app. Delivered to the first callback.
+   */
+  private pendingDeepLink: { url: string; data: DeepLinkData | null } | null = null;
   private deferredDelivered = false;
   private cachedDeferredData: DeepLinkData | null = null;
   private subscription: { remove(): void } | null = null;
@@ -74,9 +80,31 @@ export class DeepLinkHandler {
 
   /**
    * Register a direct deep link callback. Multiple callbacks supported.
+   *
+   * A link handled before any callback was registered (typically the link that
+   * launched the app) is delivered once, in a microtask, to the first callback.
    */
   onDeepLink(callback: DeepLinkCallback): void {
+    const pending = this.pendingDeepLink;
+    const isFirstCallback = this.deepLinkCallbacks.length === 0;
     this.deepLinkCallbacks.push(callback);
+
+    if (pending && isFirstCallback) {
+      queueMicrotask(() => {
+        if (this.pendingDeepLink !== pending) return;
+        this.pendingDeepLink = null;
+        for (const cb of [...this.deepLinkCallbacks]) cb(pending.url, pending.data);
+      });
+    }
+  }
+
+  /**
+   * Register an SDK-internal listener for every direct deep link open. Unlike
+   * `onDeepLink` callbacks, these don't count as a registration: a link they
+   * see is still held for the first `onDeepLink` callback.
+   */
+  onDeepLinkOpened(listener: DeepLinkCallback): void {
+    this.openListeners.push(listener);
   }
 
   /**
@@ -95,6 +123,8 @@ export class DeepLinkHandler {
   clearCallbacks(): void {
     this.deferredCallbacks = [];
     this.deepLinkCallbacks = [];
+    this.openListeners = [];
+    this.pendingDeepLink = null;
     this.deferredDelivered = false;
     this.cachedDeferredData = null;
   }
@@ -106,7 +136,7 @@ export class DeepLinkHandler {
   }
 
   private handleUrl(url: string): void {
-    if (!url || this.deepLinkCallbacks.length === 0) return;
+    if (!url) return;
 
     logger.log('Handling deep link:', url);
 
@@ -115,7 +145,7 @@ export class DeepLinkHandler {
       // the server; any other URL reaches the callbacks as null.
       const localData = lookUp ? parseDeepLinkUrl(url) : null;
       if (!localData) {
-        for (const cb of this.deepLinkCallbacks) cb(url, null);
+        this.deliver(url, null);
         return;
       }
 
@@ -126,12 +156,27 @@ export class DeepLinkHandler {
           const data = resolvedData
             ? mergeUrlParameters(resolvedData, localData.customParameters)
             : localData;
-          for (const cb of this.deepLinkCallbacks) cb(url, data);
+          this.deliver(url, data);
         })
         .catch(() => {
-          for (const cb of this.deepLinkCallbacks) cb(url, localData);
+          this.deliver(url, localData);
         });
     });
+  }
+
+  /**
+   * Hands a handled link to the internal listeners, then to the `onDeepLink`
+   * callbacks, or holds it for the first one when none is registered yet.
+   */
+  private deliver(url: string, data: DeepLinkData | null): void {
+    for (const listener of [...this.openListeners]) listener(url, data);
+
+    if (this.deepLinkCallbacks.length === 0) {
+      logger.log('No onDeepLink callback registered yet; holding the link for the first one');
+      this.pendingDeepLink = { url, data };
+      return;
+    }
+    for (const cb of [...this.deepLinkCallbacks]) cb(url, data);
   }
 
   /**

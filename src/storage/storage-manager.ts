@@ -10,6 +10,9 @@ export interface StorageManagerProtocol {
   getInstallData(): Promise<DeepLinkData | null>;
   isFirstLaunch(): Promise<boolean>;
   setHasLaunched(): Promise<void>;
+  /** Whether the server has answered an install report from this device with a 2xx. */
+  isInstallReported(): Promise<boolean>;
+  setInstallReported(): Promise<void>;
   clearAll(): Promise<void>;
 }
 
@@ -50,11 +53,20 @@ export class StorageManager implements StorageManagerProtocol {
     await AsyncStorage.setItem(STORAGE_KEYS.FIRST_LAUNCH, 'true');
   }
 
+  async isInstallReported(): Promise<boolean> {
+    return (await AsyncStorage.getItem(STORAGE_KEYS.INSTALL_REPORTED)) !== null;
+  }
+
+  async setInstallReported(): Promise<void> {
+    await AsyncStorage.setItem(STORAGE_KEYS.INSTALL_REPORTED, 'true');
+  }
+
   async clearAll(): Promise<void> {
     await AsyncStorage.multiRemove([
       STORAGE_KEYS.INSTALL_ID,
       STORAGE_KEYS.INSTALL_DATA,
       STORAGE_KEYS.FIRST_LAUNCH,
+      STORAGE_KEYS.INSTALL_REPORTED,
       STORAGE_KEYS.EVENT_QUEUE,
     ]);
   }
