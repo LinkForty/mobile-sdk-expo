@@ -1,3 +1,7 @@
+## 1.10.0 (2026-10-28)
+
+* feat: support Expo SDK 51 through 58 with peer dependencies, deliver the launch link, retry a failed ([a4e5902](https://github.com/LinkForty/mobile-sdk-expo/commit/a4e5902)), closes [#13](https://github.com/LinkForty/mobile-sdk-expo/issues/13)
+
 ## <small>1.9.1 (2026-10-28)</small>
 
 * docs: correct README against the published 1.9.0 API (#12) ([2a49b89](https://github.com/LinkForty/mobile-sdk-expo/commit/2a49b89)), closes [#12](https://github.com/LinkForty/mobile-sdk-expo/issues/12)
