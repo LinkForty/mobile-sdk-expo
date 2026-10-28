@@ -95,8 +95,9 @@ export class LinkFortySDK {
 
     // Record every direct (re-engagement) deep-link open into the attribution
     // context so subsequent events credit the link the user just tapped — not
-    // their original install link. Registered before any developer callbacks.
-    deepLinkHandler.onDeepLink((_url, data) => {
+    // their original install link. An internal listener, so a link that opens
+    // before the app registers onDeepLink is still held for its first callback.
+    deepLinkHandler.onDeepLinkOpened((_url, data) => {
       if (data?.linkId) {
         void attributionContext.recordDeepLinkOpen(data.linkId);
       }

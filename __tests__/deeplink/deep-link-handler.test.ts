@@ -187,16 +187,81 @@ describe('DeepLinkHandler', () => {
       expect(callback).toHaveBeenCalledWith('https://other-domain.com/something', null);
     });
 
-    it('does not call callbacks when none registered', async () => {
-      network = createMockNetwork();
+    it('holds a link handled before any callback and delivers it to the first one', async () => {
+      network = createMockNetwork({ shortCode: 'abc', linkId: 'link-1' });
       const handler = new DeepLinkHandler('https://go.example.com', network, fingerprint);
 
-      // No callbacks registered — should not throw
+      // No callbacks registered yet — should not throw
       handler.handleDeepLink('https://go.example.com/abc');
-
       await new Promise((r) => setTimeout(r, 50));
 
-      expect(network.request).not.toHaveBeenCalled();
+      const first = vi.fn();
+      handler.onDeepLink(first);
+      // Delivered in a microtask, not during registration
+      expect(first).not.toHaveBeenCalled();
+      await Promise.resolve();
+      expect(first).toHaveBeenCalledTimes(1);
+      expect(first).toHaveBeenCalledWith(
+        'https://go.example.com/abc',
+        expect.objectContaining({ shortCode: 'abc', linkId: 'link-1' }),
+      );
+
+      // Only once: a later registration and a later link don't replay it
+      const second = vi.fn();
+      handler.onDeepLink(second);
+      await Promise.resolve();
+      expect(second).not.toHaveBeenCalled();
+    });
+
+    it('delivers a held link to every callback registered in the same tick', async () => {
+      network = createMockNetwork();
+      const handler = new DeepLinkHandler('https://go.example.com', network, fingerprint);
+      handler.handleDeepLink('https://elsewhere.example.org/x');
+      await new Promise((r) => setTimeout(r, 50));
+
+      const a = vi.fn();
+      const b = vi.fn();
+      handler.onDeepLink(a);
+      handler.onDeepLink(b);
+      await Promise.resolve();
+
+      expect(a).toHaveBeenCalledWith('https://elsewhere.example.org/x', null);
+      expect(b).toHaveBeenCalledWith('https://elsewhere.example.org/x', null);
+    });
+
+    it('keeps only the latest link handled before any callback', async () => {
+      network = createMockNetwork();
+      const handler = new DeepLinkHandler('https://go.example.com', network, fingerprint);
+      handler.handleDeepLink('https://elsewhere.example.org/1');
+      handler.handleDeepLink('https://elsewhere.example.org/2');
+      await new Promise((r) => setTimeout(r, 50));
+
+      const cb = vi.fn();
+      handler.onDeepLink(cb);
+      await Promise.resolve();
+
+      expect(cb).toHaveBeenCalledTimes(1);
+      expect(cb).toHaveBeenCalledWith('https://elsewhere.example.org/2', null);
+    });
+
+    it('tells internal open listeners about a link without counting as a callback', async () => {
+      network = createMockNetwork({ shortCode: 'abc', linkId: 'link-1' });
+      const handler = new DeepLinkHandler('https://go.example.com', network, fingerprint);
+      const listener = vi.fn();
+      handler.onDeepLinkOpened(listener);
+
+      handler.handleDeepLink('https://go.example.com/abc');
+      await new Promise((r) => setTimeout(r, 50));
+      expect(listener).toHaveBeenCalledWith(
+        'https://go.example.com/abc',
+        expect.objectContaining({ linkId: 'link-1' }),
+      );
+
+      const cb = vi.fn();
+      handler.onDeepLink(cb);
+      await Promise.resolve();
+      expect(cb).toHaveBeenCalledTimes(1);
+      expect(listener).toHaveBeenCalledTimes(1);
     });
 
     it('resolves without fingerprint when collector throws', async () => {
@@ -235,6 +300,19 @@ describe('DeepLinkHandler', () => {
       const lateCb = vi.fn();
       handler.onDeferredDeepLink(lateCb);
       expect(lateCb).not.toHaveBeenCalled();
+    });
+
+    it('drops a link held for the first callback', async () => {
+      network = createMockNetwork();
+      const handler = new DeepLinkHandler('https://go.example.com', network, fingerprint);
+      handler.handleDeepLink('https://elsewhere.example.org/x');
+      await new Promise((r) => setTimeout(r, 50));
+
+      handler.clearCallbacks();
+      const cb = vi.fn();
+      handler.onDeepLink(cb);
+      await Promise.resolve();
+      expect(cb).not.toHaveBeenCalled();
     });
   });
 });
