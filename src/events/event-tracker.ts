@@ -6,12 +6,15 @@ import { EventQueue } from './event-queue';
 import { LinkFortyError } from '../errors/linkforty-error';
 import { logger } from '../logger';
 import { SDK_NAME, SDK_VERSION } from '../version';
+import { randomUuid } from '../random-uuid';
 
 export class EventTracker {
   private readonly network: NetworkManagerProtocol;
   private readonly storage: StorageManagerProtocol;
   private readonly queue: EventQueue;
   private readonly attribution?: AttributionContext;
+  /** The flush in progress, shared by callers that start one while it runs. */
+  private flushing: Promise<void> | null = null;
 
   constructor(
     network: NetworkManagerProtocol,
@@ -44,9 +47,12 @@ export class EventTracker {
       eventData: properties ?? {},
       timestamp: new Date().toISOString(),
       ...this.attribution?.getStamp(),
-      // SDK identity for health/version diagnostics (SIT-235)
+      // SDK identity: the SDK's name and version.
       sdkName: SDK_NAME,
       sdkVersion: SDK_VERSION,
+      // Kept with the event in the queue, so every send of it carries the
+      // same id and a server that supports it stores the event once.
+      clientEventId: randomUuid(),
     };
 
     try {
@@ -81,7 +87,21 @@ export class EventTracker {
     await this.trackEvent('revenue', eventProperties);
   }
 
-  async flushQueue(): Promise<void> {
+  /**
+   * Sends queued events in order, stopping at the first that fails. A call
+   * made while a flush is running waits for that flush instead of starting
+   * another.
+   */
+  flushQueue(): Promise<void> {
+    if (!this.flushing) {
+      this.flushing = this.sendQueued().finally(() => {
+        this.flushing = null;
+      });
+    }
+    return this.flushing;
+  }
+
+  private async sendQueued(): Promise<void> {
     await this.queue.load();
     logger.log(`Flushing event queue (${this.queue.count} events)`);
 
