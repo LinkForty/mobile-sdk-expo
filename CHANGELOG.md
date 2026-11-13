@@ -1,3 +1,7 @@
+## 1.11.0 (2026-11-13)
+
+* feat: pass the link's query parameters when resolving a link that opened the app (#14) ([d38abaa](https://github.com/LinkForty/mobile-sdk-expo/commit/d38abaa)), closes [#14](https://github.com/LinkForty/mobile-sdk-expo/issues/14)
+
 ## 1.10.0 (2026-10-28)
 
 * feat: support Expo SDK 51 through 58 with peer dependencies, deliver the launch link, retry a failed ([a4e5902](https://github.com/LinkForty/mobile-sdk-expo/commit/a4e5902)), closes [#13](https://github.com/LinkForty/mobile-sdk-expo/issues/13)
