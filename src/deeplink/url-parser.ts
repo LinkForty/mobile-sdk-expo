@@ -147,3 +147,27 @@ export function parseDeepLinkUrl(url: string, baseUrl?: string): DeepLinkData | 
     customParameters: hasCustom ? customParameters : undefined,
   };
 }
+
+/**
+ * A link's query parameters as a server reads them from a browser click:
+ * "+" is a space, and a pair that can't be decoded is skipped.
+ */
+export function linkQueryParams(url: string): Record<string, string> {
+  const hashIndex = url.indexOf('#');
+  const withoutHash = hashIndex === -1 ? url : url.substring(0, hashIndex);
+  const queryStart = withoutHash.indexOf('?');
+  const params: Record<string, string> = {};
+  if (queryStart === -1) return params;
+  for (const pair of withoutHash.substring(queryStart + 1).split('&')) {
+    const eqIndex = pair.indexOf('=');
+    if (eqIndex <= 0) continue;
+    try {
+      const key = decodeURIComponent(pair.substring(0, eqIndex).replace(/\+/g, ' '));
+      const value = decodeURIComponent(pair.substring(eqIndex + 1).replace(/\+/g, ' '));
+      if (value && !key.toLowerCase().startsWith('fp_')) params[key] = value;
+    } catch {
+      // Malformed percent-encoding: leave this pair out.
+    }
+  }
+  return params;
+}

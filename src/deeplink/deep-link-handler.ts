@@ -2,7 +2,7 @@ import * as Linking from 'expo-linking';
 import type { FingerprintCollectorProtocol } from '../fingerprint/fingerprint-collector';
 import type { NetworkManagerProtocol } from '../network/network-manager';
 import type { DeepLinkData } from '../models/deep-link-data';
-import { parseDeepLinkUrl, parseUrlString, buildQueryString, mergeUrlParameters, hostOf } from './url-parser';
+import { parseDeepLinkUrl, parseUrlString, buildQueryString, mergeUrlParameters, hostOf, linkQueryParams } from './url-parser';
 import type { LinkDomains } from './link-domains';
 import { logger } from '../logger';
 
@@ -203,20 +203,25 @@ export class DeepLinkHandler {
       resolvePath = `/api/sdk/v1/resolve/${pathSegments[0]}`;
     }
 
+    // The link's own query parameters go along, as they would on a browser
+    // click of the same link. Fingerprint parameters are the SDK's to set.
+    const params = linkQueryParams(url);
+
     // Collect fingerprint for click attribution
     try {
       const fp = this.fingerprint.collect(168);
-      const fpParams: Record<string, string> = {
-        fp_tz: fp.timezone,
-        fp_lang: fp.language,
-        fp_sw: String(fp.screenWidth),
-        fp_sh: String(fp.screenHeight),
-        fp_platform: fp.platform,
-        fp_pv: fp.platformVersion,
-      };
-      resolvePath += `?${buildQueryString(fpParams)}`;
+      params.fp_tz = fp.timezone;
+      params.fp_lang = fp.language;
+      params.fp_sw = String(fp.screenWidth);
+      params.fp_sh = String(fp.screenHeight);
+      params.fp_platform = fp.platform;
+      params.fp_pv = fp.platformVersion;
     } catch (e) {
       logger.warn('Fingerprint collection failed, resolving without fingerprint:', e);
+    }
+
+    if (Object.keys(params).length > 0) {
+      resolvePath += `?${buildQueryString(params)}`;
     }
 
     try {
