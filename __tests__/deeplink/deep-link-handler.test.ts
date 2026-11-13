@@ -285,6 +285,77 @@ describe('DeepLinkHandler', () => {
     });
   });
 
+  describe('resolve request', () => {
+    async function resolveEndpointFor(url: string, fp: FingerprintCollectorProtocol = fingerprint): Promise<string> {
+      network = createMockNetwork({ shortCode: 'abc' });
+      const handler = new DeepLinkHandler('https://go.example.com', network, fp);
+      handler.onDeepLink(vi.fn());
+      handler.handleDeepLink(url);
+      await vi.waitFor(() => expect(network.request).toHaveBeenCalledTimes(1));
+      return (network.request as ReturnType<typeof vi.fn>).mock.calls[0][0] as string;
+    }
+
+    function queryOf(endpoint: string): Record<string, string> {
+      const query = endpoint.includes('?') ? endpoint.slice(endpoint.indexOf('?') + 1) : '';
+      return Object.fromEntries(new URLSearchParams(query));
+    }
+
+    it("passes the link's query parameters along with the fingerprint", async () => {
+      const endpoint = await resolveEndpointFor('https://go.example.com/abc?os_id=u1&utm_campaign=winback');
+
+      expect(endpoint.startsWith('/api/sdk/v1/resolve/abc?')).toBe(true);
+      expect(queryOf(endpoint)).toEqual({
+        os_id: 'u1',
+        utm_campaign: 'winback',
+        fp_tz: 'America/New_York',
+        fp_lang: 'en-US',
+        fp_sw: '393',
+        fp_sh: '852',
+        fp_platform: 'ios',
+        fp_pv: '17.4',
+      });
+    });
+
+    it('keeps its own fingerprint values over fp_ parameters on the link', async () => {
+      const query = queryOf(await resolveEndpointFor('https://go.example.com/abc?fp_tz=evil&FP_LANG=evil&os_id=u1'));
+
+      expect(query.fp_tz).toBe('America/New_York');
+      expect(query.fp_lang).toBe('en-US');
+      expect(query.FP_LANG).toBeUndefined();
+      expect(query.os_id).toBe('u1');
+    });
+
+    it('encodes values once', async () => {
+      const query = queryOf(await resolveEndpointFor(`https://go.example.com/abc?note=${encodeURIComponent('a b&c')}`));
+
+      expect(query.note).toBe('a b&c');
+    });
+
+    it('reads a literal "+" in the link as a space, as a server does, and keeps %2B as "+"', async () => {
+      const query = queryOf(await resolveEndpointFor('https://go.example.com/abc?iterable_id=a+b%40x.com&email=c%2Bd%40x.com'));
+
+      expect(query.iterable_id).toBe('a b@x.com');
+      expect(query.email).toBe('c+d@x.com');
+    });
+
+    it("passes the link's parameters when the fingerprint can't be collected", async () => {
+      const failing: FingerprintCollectorProtocol = {
+        collect: vi.fn(() => {
+          throw new Error('no device info');
+        }),
+      };
+      const endpoint = await resolveEndpointFor('https://go.example.com/tmpl/abc?os_id=u1', failing);
+
+      expect(endpoint).toBe('/api/sdk/v1/resolve/tmpl/abc?os_id=u1');
+    });
+
+    it('sends only the fingerprint for a link with no query', async () => {
+      const query = queryOf(await resolveEndpointFor('https://go.example.com/abc'));
+
+      expect(Object.keys(query).sort()).toEqual(['fp_lang', 'fp_platform', 'fp_pv', 'fp_sh', 'fp_sw', 'fp_tz']);
+    });
+  });
+
   describe('clearCallbacks', () => {
     it('clears all callbacks and state', () => {
       network = createMockNetwork();
